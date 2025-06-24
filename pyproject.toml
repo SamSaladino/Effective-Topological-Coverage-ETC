@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ETC"
+version = "0.1.0"
+description = "Effective Topological Coverage metric for graph coverage evaluation"
+authors = [
+  { name="Sandra Costa", email="sanralisistrata@gmail.com" }
+]
+dependencies = [
+    "numpy",
+    "scipy",
+    "networkx",
+    "matplotlib"
+]
+requires-python = ">=3.12"
