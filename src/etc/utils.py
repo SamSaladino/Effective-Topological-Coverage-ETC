@@ -38,34 +38,24 @@ class GraphLabelPropagation:
 
     def custom_lpa(self, iterations=1000):
         """
-        Custom Label Propagation Algorithm.
+        Custom Label Propagation Algorithm using NumPy for optimization.
         """
-        labels = self.labels.copy()
+        labels = np.array([self.labels[node] for node in self.graph.nodes()])
+        adj_matrix = nx.to_numpy_array(self.graph)
+        
         for _ in range(iterations):
-            for node in self.graph.nodes():
-                label_counts = {}
-                for neighbor in self.graph.neighbors(node):
-                    label = labels[neighbor]
-                    label_counts[label] = label_counts.get(label, 0) + 1
-                max_count = 0
-                max_labels = []
-                for label, count in label_counts.items():
-                    if count > max_count:
-                        max_count = count
-                        max_labels = [label]
-                    elif count == max_count:
-                        max_labels.append(label)
-                if max_labels:
-                    labels[node] = int(max_labels[0])
-        self.labels = labels
-        return labels
+            label_counts = adj_matrix @ labels
+            labels = np.where(label_counts > 0, 1, 0)
+        
+        self.labels = {node: int(labels[i]) for i, node in enumerate(self.graph.nodes())}
+        return self.labels
 
     def sklearn_lpa(self, max_iter=500):
         """
         Use scikit-learn's LabelPropagation.
         """
         adj_matrix = nx.to_numpy_array(self.graph)
-        initial_labels = np.array([1 if self.labels[node] == 1 else -1 for node in self.graph.nodes()])
+        initial_labels = np.array([1 if self.labels[node] == 1 else 0 for node in self.graph.nodes()])
         model = LabelPropagation(max_iter=max_iter, kernel='rbf')
         model.fit(adj_matrix, initial_labels)
         final_labels = model.transduction_
