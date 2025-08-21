@@ -3,4 +3,4 @@ from . import utils
 # from . import sampling
 # from . import coverage
 
-__all__ = ["utils"]
+__all__ = ["utils","parse_ids"]
