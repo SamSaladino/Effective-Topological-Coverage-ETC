@@ -4,13 +4,18 @@ import numpy as np
 import ast
 
 class XMLParser:
-    """Parse HUMAN1 SBML and extract identifiers present in the file.
+    """Parse HUMAN1 SBML and extract identifiers present in the file (no web calls).
 
-    Output (XML-only, no online lookups):
-    - DataFrame indexed by HUMAN1_ID with columns: chebi, smiles, inchikey, kegg, metanetx
+    Output DataFrame (index: HUMAN1_ID) columns:
+    - chebi (normalized to 'CHEBI:xxxx')
+    - smiles
+    - inchikey
+    - kegg          (from 'kegg.compound')
+    - metanetx      (from 'metanetx.chemical')
+    - vmhmetabolite (from 'vmhmetabolite')
     """
 
-    def __init__(self, path):
+    def __init__(self, path: str):
         self.path = path
         self.tree = ET.parse(self.path)
         self.root = self.tree.getroot()
@@ -30,7 +35,7 @@ class XMLParser:
             ]
             self.data.append([metabolite_id, identifiers])
 
-    def extract_data(self):
+    def extract_data(self) -> pd.DataFrame:
         """Build base DataFrame with cleaned/split identifiers."""
         self.df = pd.DataFrame(self.data, columns=['Metabolite_ID', 'Identifiers'])
         self.df.Identifiers = self.df.Identifiers.astype(str)
@@ -40,11 +45,11 @@ class XMLParser:
         return self.df
 
     def split_and_clean(self, identifiers):
-        """Split identifiers.org paths on '/' -> [['chebi','CHEBI:1234'], ...]."""
+        """Split identifiers.org paths on '/' -> [['namespace','value'], ...]."""
         return [item.split('/') for item in identifiers]
 
-    def to_identifier_df(self):
-        """Return DataFrame indexed by HUMAN1_ID with chebi, smiles, inchikey, kegg, metanetx (XML-only)."""
+    def to_identifier_df(self) -> pd.DataFrame:
+        """Return DataFrame indexed by HUMAN1_ID with chebi, smiles, inchikey, kegg, metanetx, vmhmetabolite (XML-only)."""
         if self.df.empty:
             self.extract_data()
 
@@ -55,9 +60,9 @@ class XMLParser:
 
             smiles = self._first_of(identifiers, {"smiles", "smile"})
             inchikey = self._first_of(identifiers, {"inchikey", "inchi.key", "inchi_key"})
-            # Use the exact namespaces you confirmed
             kegg = self._first_of(identifiers, {"kegg.compound"})
             metanetx = self._first_of(identifiers, {"metanetx.chemical"})
+            vmhmetabolite = self._first_of(identifiers, {"vmhmetabolite"})
 
             rows.append({
                 "HUMAN1_ID": metabolite_id,
@@ -66,6 +71,7 @@ class XMLParser:
                 "inchikey": inchikey if isinstance(inchikey, str) and inchikey else np.nan,
                 "kegg": kegg if isinstance(kegg, str) and kegg else np.nan,
                 "metanetx": metanetx if isinstance(metanetx, str) and metanetx else np.nan,
+                "vmhmetabolite": vmhmetabolite if isinstance(vmhmetabolite, str) and vmhmetabolite else np.nan,
             })
 
         return pd.DataFrame(rows).set_index("HUMAN1_ID")
