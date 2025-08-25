@@ -65,6 +65,9 @@ class XMLParser:
             kegg = self._first_of(identifiers, {"kegg.compound"})
             metanetx = self._first_of(identifiers, {"metanetx.chemical"})
             vmhmetabolite = self._first_of(identifiers, {"vmhmetabolite"})
+            hmdb = self._first_of(identifiers, {"hmdb"})
+            lipidmaps = self._first_of(identifiers, {"lipidmaps"})
+            pubchem = self._first_of(identifiers, {"pubchem.compound"})
 
             rows.append({
                 "HUMAN1_ID": metabolite_id,
@@ -74,6 +77,9 @@ class XMLParser:
                 "kegg": kegg if isinstance(kegg, str) and kegg else np.nan,
                 "metanetx": metanetx if isinstance(metanetx, str) and metanetx else np.nan,
                 "vmhmetabolite": vmhmetabolite if isinstance(vmhmetabolite, str) and vmhmetabolite else np.nan,
+                "hmdb": hmdb if isinstance(hmdb, str) and hmdb else np.nan,
+                "lipidmaps": lipidmaps if isinstance(lipidmaps, str) and lipidmaps else np.nan,
+                "pubchem": pubchem if isinstance(pubchem, str) and pubchem else np.nan,
             })
 
         return pd.DataFrame(rows).set_index("HUMAN1_ID")
