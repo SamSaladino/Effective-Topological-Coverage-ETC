@@ -2,14 +2,16 @@ import xml.etree.ElementTree as ET
 import pandas as pd
 import numpy as np
 import ast
-
+import libchebipy
+import re
+import requests
 class XMLParser:
     """Parse HUMAN1 SBML and extract identifiers present in the file (no web calls).
 
     Output DataFrame (index: HUMAN1_ID) columns:
     - chebi (normalized to 'CHEBI:xxxx')
-    - smiles
-    - inchikey
+    - smiles        (create the column empty)
+    - inchikey      (create the column empty)
     - kegg          (from 'kegg.compound')
     - metanetx      (from 'metanetx.chemical')
     - vmhmetabolite (from 'vmhmetabolite')
@@ -91,3 +93,4 @@ class XMLParser:
             return None
         token = value.split(':')[-1]
         return f"CHEBI:{token}"
+    
