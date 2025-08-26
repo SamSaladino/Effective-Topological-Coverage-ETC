@@ -65,9 +65,7 @@ def H(A, Dinv2_triu, S_idx, mu=1.0, gamma=1.0):
     t2 = gamma * float(np.triu(sub, k=1).sum())
     return t1 + t2, t1, t2
 
-# --------------------------------------#
-# Graph properties ---------------------#
-#---------------------------------------#
+# -------------------- Graph Properties ------------------------
 
 # Average degree
 def avg_deg(G):
@@ -77,7 +75,20 @@ def avg_deg(G):
 def avg_spl(G):
     return nx.average_shortest_path_length(G)
 
-# Graph balance factor
+def graph_density(G):
+    n = G.number_of_nodes()
+    e = G.number_of_edges()
+    if n <= 1:
+        return 0.0
+    return (2 * e) / (n * (n - 1))
+
+# ------------------- Parameter Estimation ---------------------
+
+def mu_density_aware(G, scale=1.0):
+    rho = graph_density(G)
+    return scale * max(0.0, 1.0 - rho)
+
+
 def gamma_balancer(G, k, mu=1.0):
     """
     Compute the graph balance factor.
