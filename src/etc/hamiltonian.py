@@ -53,7 +53,8 @@ class Hamiltonian:
                 D = np.asarray(distance_matrix, dtype=np.float64)
                 if D.shape != (self.n, self.n):
                     raise ValueError(
-                        "distance_matrix ndarray must have shape (n, n) matching graph nodes"
+                        "distance_matrix ndarray must have shape (n, n) " \
+                        "matching graph nodes"
                     )
             elif isinstance(distance_matrix, dict):
                 D = np.full((self.n, self.n), np.inf, dtype=np.float64)
@@ -192,7 +193,7 @@ def H(
     S_idx: Sequence[int],
     mu: float = 1.0,
     gamma: float = 1.0,
-) -> Tuple[float, float, float]:
+    ) -> Tuple[float, float, float]:
     
     """Compatibility wrapper matching the original function signature.
 
