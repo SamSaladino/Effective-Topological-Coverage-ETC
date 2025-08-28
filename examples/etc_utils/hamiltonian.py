@@ -88,14 +88,9 @@ def mu_density_aware(G, scale=1.0):
     rho = graph_density(G)
     return scale * max(0.0, 1.0 - rho)
 
-
-def gamma_balancer(G, k, mu=1.0):
-    """
-    Compute the graph balance factor.
-    """
-    if k <= 1:
-        return 0.0
+def gamma_balancer(G, mu=1.0, scale=1.0):
     d_bar = avg_deg(G)
     l_bar = avg_spl(G)
-    return (mu * d_bar * (l_bar ** 2)) / (k - 1)
+    n = G.number_of_nodes()
+    return scale * mu * d_bar * (l_bar ** 2) / (2 * n)
 

@@ -1,0 +1,7 @@
+# Runtime dependencies
+numpy
+networkx
+scipy
+
+# Test / dev dependencies
+pytest

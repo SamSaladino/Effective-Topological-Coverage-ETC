@@ -1,6 +1,5 @@
 from . import utils
-# from . import diffusion
-# from . import sampling
-# from . import coverage
+from . import parse_ids
+from .hamiltonian import Hamiltonian, precompute, H
 
-__all__ = ["utils","parse_ids"]
+__all__ = ["utils", "parse_ids", "Hamiltonian", "precompute", "H"]
