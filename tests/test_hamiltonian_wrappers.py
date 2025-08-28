@@ -37,3 +37,32 @@ def test_precompute_matches_class_fields():
     assert Hobj.Dinv2_triu.shape == Dinv2_triu.shape
     assert Hobj.nodes == nodes
     assert Hobj.idx == idx
+
+
+def test_distance_matrix_inputs_equivalent():
+    # path graph where shortest paths are easy to reason about
+    G = nx.path_graph(6)
+    n = G.number_of_nodes()
+
+    # baseline: default behaviour (distance_matrix=None)
+    H_none = Hamiltonian(G)
+
+    # dict-like distances as produced by NetworkX
+    sp_len = dict(nx.all_pairs_shortest_path_length(G))
+    H_dict = Hamiltonian(G, distance_matrix=sp_len)
+
+    # numpy ndarray distances (shape must be (n,n))
+    D_arr = np.full((n, n), np.inf, dtype=np.float64)
+    for u, du in sp_len.items():
+        for v, dij in du.items():
+            D_arr[u, v] = float(dij)
+    H_arr = Hamiltonian(G, distance_matrix=D_arr)
+
+    # integer-indexed dict (keys are indices instead of node labels)
+    sp_len_idx = {i: {j: sp_len[i][j] for j in sp_len[i].keys()} for i in range(n)}
+    H_idxdict = Hamiltonian(G, distance_matrix=sp_len_idx)
+
+    # all Dinv2_triu matrices should be identical (within tolerance)
+    assert np.allclose(H_none.Dinv2_triu, H_dict.Dinv2_triu)
+    assert np.allclose(H_none.Dinv2_triu, H_arr.Dinv2_triu)
+    assert np.allclose(H_none.Dinv2_triu, H_idxdict.Dinv2_triu)

@@ -4,7 +4,7 @@ from scipy import sparse
 from typing import Sequence, Optional, Tuple, List, Dict
 
 class Hamiltonian:
-    """Encapsulate Hamiltonian computation for a graph.
+    """Hamiltonian computation for a graph.
 
     Usage:
         H = Hamiltonian(G)
@@ -13,7 +13,7 @@ class Hamiltonian:
     The class preserves the prior behavior but groups related data and helpers.
     """
 
-    def __init__(self, G: nx.Graph) -> None:
+    def __init__(self, G: nx.Graph, distance_matrix: np.ndarray = None) -> None:
         self.G = G
         self.nodes: List = list(G.nodes())
         self.idx: Dict = {u: i for i, u in enumerate(self.nodes)}
@@ -23,19 +23,75 @@ class Hamiltonian:
         if self.n == 0:
             # empty CSR when graph has no nodes
             self.A = sparse.csr_matrix((0, 0), dtype=np.float64)
-        else:
-            self.A = nx.to_scipy_sparse_array(
-                G, nodelist=self.nodes, dtype=np.float64, format="csr"
-            )
+            # empty distance and Dinv2 matrices
+            self.distance_matrix = np.zeros((0, 0), dtype=np.float64)
+            self.Dinv2_triu = np.zeros((0, 0), dtype=np.float64)
+            return
 
-        # precompute inverse-square upper triangular distance matrix
+        self.A = nx.to_scipy_sparse_array(
+            G, nodelist=self.nodes, dtype=np.float64, format="csr"
+        )
+
+        # Normalize distance_matrix input to a (n,n) numpy array named D
+        D = None
+        if distance_matrix is None:
+            # compute shortest path lengths (dict of dicts) and fill numpy array
+            sp_len = dict(nx.all_pairs_shortest_path_length(G))
+            D = np.full((self.n, self.n), np.inf, dtype=np.float64)
+            for u, du in sp_len.items():
+                if u not in self.idx:
+                    continue
+                i = self.idx[u]
+                for v, dij in du.items():
+                    if v not in self.idx:
+                        continue
+                    j = self.idx[v]
+                    D[i, j] = float(dij)
+        else:
+            # distance_matrix provided by caller: accept ndarray or dict-like
+            if isinstance(distance_matrix, np.ndarray):
+                D = np.asarray(distance_matrix, dtype=np.float64)
+                if D.shape != (self.n, self.n):
+                    raise ValueError(
+                        "distance_matrix ndarray must have shape (n, n) matching graph nodes"
+                    )
+            elif isinstance(distance_matrix, dict):
+                D = np.full((self.n, self.n), np.inf, dtype=np.float64)
+                # support either node-keyed dicts or integer-indexed dicts
+                for u, du in distance_matrix.items():
+                    try:
+                        i = self.idx[u]
+                    except Exception:
+                        # try treating u as integer index
+                        try:
+                            i = int(u)
+                        except Exception:
+                            continue
+                        if i < 0 or i >= self.n:
+                            continue
+                    for v, dij in du.items():
+                        try:
+                            j = self.idx[v]
+                        except Exception:
+                            try:
+                                j = int(v)
+                            except Exception:
+                                continue
+                        if j < 0 or j >= self.n:
+                            continue
+                        D[i, j] = float(dij)
+            else:
+                raise TypeError(
+                    "distance_matrix must be None, a numpy.ndarray, or a dict mapping"
+                )
+
+        # store the normalized distance matrix and compute Dinv2_triu
+        self.distance_matrix = D
         self.Dinv2_triu = np.zeros((self.n, self.n), dtype=np.float64)
-        dist = dict(nx.all_pairs_shortest_path_length(G))
-        for u, du in dist.items():
-            i = self.idx[u]
-            for v, dij in du.items():
-                j = self.idx[v]
-                if i < j and dij > 0:
+        for i in range(self.n):
+            for j in range(i + 1, self.n):
+                dij = D[i, j]
+                if np.isfinite(dij) and dij > 0:
                     self.Dinv2_triu[i, j] = 1.0 / (dij * dij)
 
     # -------------------- Core computation ---------------------
