@@ -167,10 +167,17 @@ class Hamiltonian:
         by zero.
         """
         min_pos = self._min_positive_Dinv2()
+        # If there are no positive entries, or min_pos is zero/invalid, return 0
+        if not np.isfinite(min_pos) or min_pos <= 0.0:
+            return 0.0
         rho = Hamiltonian.graph_density(self.G)
         if rho >= 1.0:
+            # fallback: avoid division by zero when rho == 1.0
             return scale * mu * 1.0 / (min_pos)
-        return (scale * (mu  * rho)) / (min_pos * (1.0 - rho))
+        denom = min_pos * (1.0 - rho)
+        if denom == 0.0:
+            return 0.0
+        return (scale * (mu * rho)) / denom
 
 
 # ----------------- Backwards compatible thin wrappers -----------------
