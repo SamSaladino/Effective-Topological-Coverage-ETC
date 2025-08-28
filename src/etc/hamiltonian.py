@@ -169,8 +169,8 @@ class Hamiltonian:
         min_pos = self._min_positive_Dinv2()
         rho = Hamiltonian.graph_density(self.G)
         if rho >= 1.0:
-            return scale * mu * (min_pos ** 2)
-        return (scale * (mu * (min_pos ** 2) * rho)) / (1.0 - rho)
+            return scale * mu * 1.0 / (min_pos)
+        return (scale * (mu  * rho)) / (min_pos * (1.0 - rho))
 
 
 # ----------------- Backwards compatible thin wrappers -----------------
