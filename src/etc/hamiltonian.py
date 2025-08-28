@@ -148,10 +148,6 @@ class Hamiltonian:
 
     # ---------------- Graph properties & parameter estimation -----
     @staticmethod
-    def avg_spl(G: nx.Graph) -> float:
-        return nx.average_shortest_path_length(G)
-
-    @staticmethod
     def graph_density(G: nx.Graph) -> float:
         n = G.number_of_nodes()
         e = G.number_of_edges()
