@@ -3,6 +3,7 @@ import networkx as nx
 from scipy import sparse
 from typing import Sequence, Optional, Tuple, List, Dict
 
+
 class Hamiltonian:
     """Hamiltonian computation for a graph.
 
@@ -13,7 +14,8 @@ class Hamiltonian:
     The class preserves the prior behavior but groups related data and helpers.
     """
 
-    def __init__(self, G: nx.Graph, distance_matrix: np.ndarray = None) -> None:
+    def __init__(self, G: nx.Graph,
+                 distance_matrix: np.ndarray = None) -> None:
         self.G = G
         self.nodes: List = list(G.nodes())
         self.idx: Dict = {u: i for i, u in enumerate(self.nodes)}
@@ -35,7 +37,8 @@ class Hamiltonian:
         # Normalize distance_matrix input to a (n,n) numpy array named D
         D = None
         if distance_matrix is None:
-            # compute shortest path lengths (dict of dicts) and fill numpy array
+            # compute shortest path lengths (dict of dicts) and fill numpy
+            # array
             sp_len = dict(nx.all_pairs_shortest_path_length(G))
             D = np.full((self.n, self.n), np.inf, dtype=np.float64)
             for u, du in sp_len.items():
@@ -53,7 +56,7 @@ class Hamiltonian:
                 D = np.asarray(distance_matrix, dtype=np.float64)
                 if D.shape != (self.n, self.n):
                     raise ValueError(
-                        "distance_matrix ndarray must have shape (n, n) " \
+                        "distance_matrix ndarray must have shape (n, n) "
                         "matching graph nodes"
                     )
             elif isinstance(distance_matrix, dict):
@@ -83,7 +86,8 @@ class Hamiltonian:
                         D[i, j] = float(dij)
             else:
                 raise TypeError(
-                    "distance_matrix must be None, a numpy.ndarray, or a dict mapping"
+                    "distance_matrix must be None, a numpy.ndarray, or a "
+                    "dict mapping"
                 )
 
         # store the normalized distance matrix and compute Dinv2_triu
@@ -107,7 +111,8 @@ class Hamiltonian:
         return float(eps)
 
     def compute(
-        self, S_idx: Sequence[int], mu: float = 1.0, gamma: Optional[float] = None
+        self, S_idx: Sequence[int], mu: float = 1.0,
+        gamma: Optional[float] = None
     ) -> Tuple[float, float, float]:
         """Compute Hamiltonian for subset S_idx.
 
@@ -132,7 +137,8 @@ class Hamiltonian:
 
         if S_idx_arr.size > 0:
             if S_idx_arr.min() < 0 or S_idx_arr.max() >= n:
-                raise IndexError("S_idx contains index outside the range" " of nodes")
+                raise IndexError("S_idx contains index outside the range "
+                                 "of nodes")
 
         s = np.zeros(n, dtype=np.float64)
         s[S_idx_arr] = 1.0
@@ -196,8 +202,7 @@ def H(
     S_idx: Sequence[int],
     mu: float = 1.0,
     gamma: float = 1.0,
-    ) -> Tuple[float, float, float]:
-    
+) -> Tuple[float, float, float]:
     """Compatibility wrapper matching the original function signature.
 
     Parameters are the adjacency ``A``, the upper-triangular inverse-square
@@ -211,7 +216,8 @@ def H(
     n = A.shape[0]
     if S_idx_arr.size > 0:
         if S_idx_arr.min() < 0 or S_idx_arr.max() >= n:
-            raise IndexError("S_idx contains index outside the range of nodes")
+            raise IndexError("S_idx contains index outside the range "
+                             "of nodes")
 
     s = np.zeros(n, dtype=np.float64)
     s[S_idx_arr] = 1.0
