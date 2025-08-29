@@ -180,7 +180,7 @@ class Hamiltonian:
         return (scale * (mu * rho)) / denom
 
 
-# ----------------- Backwards compatible thin wrappers -----------------
+# ----------------- Backwards compatible thin wrappers --------------
 def precompute(G: nx.Graph) -> Tuple:
     """Compatibility wrapper that returns (A, Dinv2_triu, nodes, idx).
 
