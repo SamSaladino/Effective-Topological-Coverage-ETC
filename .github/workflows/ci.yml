@@ -33,5 +33,5 @@ jobs:
 
       - name: Run tests
         run: |
-          export PYTHONPATH=$PYTHONPATH:$(pwd)/src
+          export PYTHONPATH=$PYTHONPATH:$(pwd)/src/etc
           python -m pytest -q
