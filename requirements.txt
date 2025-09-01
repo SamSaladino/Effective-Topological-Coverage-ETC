@@ -2,6 +2,7 @@
 numpy
 networkx
 scipy
+pandas
 
 # Test / dev dependencies
 pytest
