@@ -32,4 +32,6 @@ jobs:
           if [ -f requirements.txt ]; then python -m pip install -r requirements.txt; fi
 
       - name: Run tests
-        run: PYTHONPATH=. pytest -q
+        run: |
+          export PYTHONPATH=$PYTHONPATH:$(pwd)
+          python -m pytest -q
