@@ -31,7 +31,14 @@ jobs:
           python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then python -m pip install -r requirements.txt; fi
 
+      - name: Debug PYTHONPATH and files
+        run: |
+          echo "PYTHONPATH=$PYTHONPATH:$(pwd)/src"
+          ls -l $(pwd)/src
+          ls -l $(pwd)/src/etc
+          
       - name: Run tests
         run: |
           export PYTHONPATH=$PYTHONPATH:$(pwd)/src
           python -m pytest -q
+
