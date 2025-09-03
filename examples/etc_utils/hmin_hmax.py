@@ -79,6 +79,24 @@ def solve_extreme_k(A: np.ndarray,
     return float(solver.ObjectiveValue()), x_sol
 
 def phase_diagram_values(A, D2, mu: float, kmax=10, scale_max=8, Hamiltonian: object=Hamiltonian):
+    """
+    Compute the phase diagram values for a given graph and Hamiltonian function.
+    -------
+    Parameters
+    ----------
+    A : np.ndarray
+        Adjacency matrix of the graph
+    D2 : np.ndarray
+        Distance matrix squared
+    mu : float
+        Parameter mu
+    kmax : int
+        Maximum number of nodes to select
+    scale_max : int
+        Maximum scale for the Hamiltonian function
+    Hamiltonian : object
+        Hamiltonian class to use
+    """
     results = {}
     for k in range(2, kmax+1, 1):
         results[k] = {}
