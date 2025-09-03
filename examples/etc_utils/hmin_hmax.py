@@ -1,6 +1,6 @@
 from ortools.sat.python import cp_model
 import numpy as np
-
+from etc.hamiltonian import Hamiltonian
 
 def build_Jij(A: np.ndarray, Div2: np.ndarray, mu: float, gamma: float):
     """ Construct the matrix with all the constant parameters in the graph
@@ -77,6 +77,16 @@ def solve_extreme_k(A: np.ndarray,
 
     x_sol = np.array([int(solver.Value(v)) for v in x], dtype=int)
     return float(solver.ObjectiveValue()), x_sol
+
+def phase_diagram_values(A, D2, mu: float, kmax=10, scale_max=8, Hamiltonian: object=Hamiltonian):
+    results = {}
+    for k in range(2, kmax+1, 1):
+        results[k] = {}
+        for scale in range(1, scale_max+1, 1):
+            gamma = Hamiltonian.gamma_balancer(scale=scale, mu=mu)
+            hmin = solve_extreme_k(A, D2, k=k, mu=mu, gamma=gamma, sense="min")[0]
+            results[k][scale] = (gamma, hmin)
+    return results
 
 if __name__ == "__main__":
     pass
