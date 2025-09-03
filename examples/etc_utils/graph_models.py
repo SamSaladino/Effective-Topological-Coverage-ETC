@@ -40,6 +40,10 @@ def G_string_of_pearls(m: int = 7, clique: int = 8) -> nx.Graph:
 
 def connect_components(G: nx.Graph, seed: int = 1) -> nx.Graph:
     """If G is disconnected, add edges between components so the result is connected.
+    ------------
+    Parameters:
+    - G: input graph (networkx.Graph)
+    - seed: random seed for reproducibility (int)
 
     The operation mutates a copy of the input graph and returns it with integer
     node labels (0..n-1) sorted. Uses the provided seed for deterministic choices.
@@ -58,6 +62,11 @@ def connect_components(G: nx.Graph, seed: int = 1) -> nx.Graph:
 
 def smart_layout(G: nx.Graph, seed: int = 1):
     """Return a layout for plotting depending on graph size.
+    -----------
+    Parameters:
+
+    - G: input graph (networkx.Graph)
+    - seed: random seed for reproducibility (int)
 
     - For n <= 1200: try Kamada-Kawai, fall back to spring_layout with seed.
     - For larger graphs: spectral_layout.
@@ -74,6 +83,12 @@ def smart_layout(G: nx.Graph, seed: int = 1):
 def show_graph(G: nx.Graph, title: Optional[str] = None, node_size: int = 8, 
                ax: Optional[plt.Axes] = None):
     """Simple graph visualization using a smart layout.
+    -----------
+    Parameters:
+    - G: input graph (networkx.Graph)
+    - title: optional title for the plot (str)
+    - node_size: size of the nodes (int)
+    - ax: optional matplotlib Axes to draw on (plt.Axes)
 
     If `ax` is provided the drawing is performed on it; otherwise a new figure
     is created and shown.
@@ -107,7 +122,7 @@ def show_highlighted_subsets(
     pos: Optional[dict] = None,
 ):
     """Visualize one or more highlighted node subsets side-by-side.
-
+    -----------
     Parameters
     - G: graph to visualize.
     - subsets: sequence of iterables of node ids (int or str) to highlight. 
