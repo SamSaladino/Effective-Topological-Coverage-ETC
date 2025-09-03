@@ -243,3 +243,25 @@ def get_graphs_list(seed: int = 2):
         ("Star(n=400)", nx.star_graph(50)),
     ]
     return graphs
+
+def main():
+    """Simple CLI entrypoint used when running this module.
+
+    Prints the names and basic sizes of the example graphs. This is
+    intentionally lightweight and side-effect free (no plotting) so it's
+    safe to run in non-interactive environments.
+    """
+    graphs = get_graphs_list()
+    for name, G in graphs:
+        try:
+            n = G.number_of_nodes()
+            m = G.number_of_edges()
+        except Exception:
+            n = "?"
+            m = "?"
+        print(f"{name}: nodes={n} edges={m}")
+    return graphs
+
+
+if __name__ == "__main__":
+    main()
