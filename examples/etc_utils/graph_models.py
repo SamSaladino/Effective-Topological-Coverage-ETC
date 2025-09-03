@@ -244,12 +244,19 @@ def get_graphs_list(seed: int = 2):
     ]
     return graphs
 
-def main():
-    """Simple CLI entrypoint used when running this module.
+def main() -> List[Tuple[str, nx.Graph]]:
+    """Simple CLI entrypoint for `examples.etc_utils.graph_models`.
 
-    Prints the names and basic sizes of the example graphs. This is
-    intentionally lightweight and side-effect free (no plotting) so it's
-    safe to run in non-interactive environments.
+    What it does
+    - Builds the canonical list of example graphs via :func:`get_graphs_list`.
+    - Prints each graph name plus a node/edge count summary to stdout.
+
+    Rationale
+    - The function is intentionally lightweight and side-effect free (no
+      plotting, no file I/O) so it's safe to run from CI or headless shells.
+
+    Returns
+    - The list produced by :func:`get_graphs_list`, as (name, graph) tuples.
     """
     graphs = get_graphs_list()
     for name, G in graphs:
