@@ -209,38 +209,38 @@ def get_graphs_list(seed: int = 2):
     connected using `connect_components` where appropriate.
     """
     graphs = [
-        ("Barbell(c=25, p=5)", nx.barbell_graph(25, 5)),
+        ("Barbell(c=10, p=5)", nx.barbell_graph(10, 5)),
         ("Lollipop(c=30, t=50)", nx.lollipop_graph(30, 50)),
         ("String of Pearls(m=7,c=8)", G_string_of_pearls(7, 8)),
-        ("Path(n=100)", nx.path_graph(100)),
-        ("Balanced Tree(r=3,h=5)", nx.balanced_tree(3, 5)),
+        ("Path(n=20)", nx.path_graph(20)),
+        ("Balanced Tree(r=3,h=4)", nx.balanced_tree(3, 4)),
         ("Core-Periphery", connect_components(
-            nx.stochastic_block_model([80, 220], [[0.18, 0.05],[0.05, 0.01]], 
+            nx.stochastic_block_model([40, 80], [[0.18, 0.05],[0.05, 0.01]], 
                                                   seed=seed), 
                                                   seed=seed)
             ),
-        ("Erdos-Renyi(n=200,p=0.05)", connect_components(
-            nx.erdos_renyi_graph(200, 0.05, seed=seed), seed=seed)),
+        ("Erdos-Renyi(n=80,p=0.05)", connect_components(
+            nx.erdos_renyi_graph(80, 0.05, seed=seed), seed=seed)),
         ("Random Partition (communities)", connect_components(
-            nx.random_partition_graph([15, 25, 20], 0.8, 0.02, seed=seed), seed=seed)),
-        ("2D Grid 20x20", nx.grid_2d_graph(20, 20)),
-        ("Toroidal Grid 20x20", nx.grid_2d_graph(20, 20, periodic=True)),
-        ("Circular Ladder(n=100)", nx.circular_ladder_graph(50)),
-        ("Circulant(n=200,steps=[1,2,3])", nx.circulant_graph(200, [1, 2, 3])),
+            nx.random_partition_graph([15, 10, 20], 0.8, 0.02, seed=seed), seed=seed)),
+        ("2D Grid 15x15", nx.grid_2d_graph(15, 15)),
+        ("Toroidal Grid 15x15", nx.grid_2d_graph(15, 15, periodic=True)),
+        ("Circular Ladder(n=50)", nx.circular_ladder_graph(50)),
+        ("Circulant(n=50,steps=[1,2,3])", nx.circulant_graph(50, [1, 2, 3])),
         ("WS beta=0.0", connect_components(
-            nx.watts_strogatz_graph(150, 8, 0.0, seed=seed), seed=seed)),
+            nx.watts_strogatz_graph(50, 8, 0.0, seed=seed), seed=seed)),
         ("WS beta=0.2", connect_components(
-            nx.watts_strogatz_graph(150, 8, 0.2, seed=seed), seed=seed)),
+            nx.watts_strogatz_graph(50, 8, 0.2, seed=seed), seed=seed)),
         ("WS beta=1.0", connect_components(
-            nx.watts_strogatz_graph(150, 8, 1.0, seed=seed), seed=seed)),
-        ("BA(n=400,m=2)", nx.barabasi_albert_graph(100, 2, seed=seed)),
+            nx.watts_strogatz_graph(50, 8, 1.0, seed=seed), seed=seed)),
+        ("BA(n=50,m=2)", nx.barabasi_albert_graph(50, 2, seed=seed)),
         ("Powerlaw-Cluster", connect_components(
-            nx.powerlaw_cluster_graph(100, 2, 0.3, seed=seed), seed=seed)),
-        ("d-Regular(n=400,d=6)", connect_components(
-            nx.random_regular_graph(6, 100, seed=seed), seed=seed)),
-        ("Geometric(n=400,r=0.07)", connect_components(
-            nx.random_geometric_graph(100, 0.07, seed=seed), seed=seed)),
-        ("Star(n=400)", nx.star_graph(50)),
+            nx.powerlaw_cluster_graph(50, 2, 0.3, seed=seed), seed=seed)),
+        ("d-Regular(n=50,d=6)", connect_components(
+            nx.random_regular_graph(6, 50, seed=seed), seed=seed)),
+        ("Geometric(n=50,r=0.07)", connect_components(
+            nx.random_geometric_graph(50, 0.07, seed=seed), seed=seed)),
+        ("Star(n=50)", nx.star_graph(50)),
     ]
     return graphs
 
