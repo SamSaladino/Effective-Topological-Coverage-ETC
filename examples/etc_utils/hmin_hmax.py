@@ -79,28 +79,4 @@ def solve_extreme_k(A: np.ndarray,
     return float(solver.ObjectiveValue()), x_sol
 
 if __name__ == "__main__":
-    import numpy as np
-
-    # Example usage
-    # Define a small adjacency and distance matrix for demonstration
-    A = np.array([
-        [0, 1, 0],
-        [1, 0, 1],
-        [0, 1, 0]
-    ])
-    D = np.array([
-        [0, 1, 2],
-        [1, 0, 1],
-        [2, 1, 0]
-    ])
-
-    k = 2
-    mu = 1.0
-    gamma = 0.5
-    sense = "min"
-
-    # Run the solver
-    objective_value, x_sol = solve_extreme_k(A, D, k, mu, gamma, sense)
-
-    print("Objective Value:", objective_value)
-    print("Selected Nodes:", x_sol)
+    pass
