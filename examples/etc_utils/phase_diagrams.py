@@ -77,9 +77,10 @@ def solve_extreme_k(A: np.ndarray,
 
     x_sol = np.array([int(solver.Value(v)) for v in x], dtype=int)
     return float(solver.ObjectiveValue()), x_sol
+
 def phase_diagram_values(
-        A, D2, mu: float, 
-        kmax=10, scale_max=8, Hamiltonian: object=Hamiltonian):
+        A, D2, mu: float=1.0, 
+        kmax=10, scale_max=80, scale_steps=1.0, k_steps=1.0):
     """
     Compute the phase diagram values for a given graph 
     and Hamiltonian function.
@@ -100,12 +101,12 @@ def phase_diagram_values(
         Hamiltonian class to use
     """
     results = {}
-    for k in range(2, kmax+1, 1):
+    for k in range(2, kmax+1, k_steps):
         results[k] = {}
-        for scale in range(1, scale_max+1, 1):
-            gamma = Hamiltonian.gamma_balancer(scale=scale, mu=mu)
+        for scale in range(1, scale_max+1, scale_steps):
+            gamma = scale * mu
             hmin = solve_extreme_k(A, D2, k=k, mu=mu, gamma=gamma, sense="min")[0]
-            results[k][scale] = (gamma, hmin)
+            results[k][scale] = (mu/gamma, hmin)
     return results
 
 if __name__ == "__main__":
