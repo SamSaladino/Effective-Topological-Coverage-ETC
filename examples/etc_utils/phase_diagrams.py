@@ -29,14 +29,16 @@ def solve_extreme_k(A: np.ndarray,
                     k: int,
                     mu: float,
                     gamma: float,
-                    sense: str = "min",
+                    sense: str = "closest",
                     time_limit_s: float = None,
-                    workers: int = 8):
+                    workers: int = 8,
+                    precision: int = 1000):
     """
     Exact H_min / H_max for selecting exactly k nodes.
     Returns: (objective_value, x_sol: {0,1}^n)
     """
-    assert sense in ("min", "max")
+    # sense: 'min' | 'max' | 'closest' (closest to zero)
+    assert sense in ("min", "max", "closest")
     n = A.shape[0]
     if not (0 < k <= n):
         raise ValueError("k must be in 1..n")
@@ -57,12 +59,33 @@ def solve_extreme_k(A: np.ndarray,
         model.Add(yij <= x[j])
         model.Add(yij >= x[i] + x[j] - 1)
 
-    # linear objective
-    objective = sum(Jij * y[(i, j)] for (i, j), Jij in J.items())
-    if sense == "min":
-        model.Minimize(objective)
+    # linear objective or absolute-objective proxy
+    if sense in ("min", "max"):
+        # original floating objective (OR-Tools accepts numeric coeffs here in this project)
+        objective = sum(Jij * y[(i, j)] for (i, j), Jij in J.items())
+        if sense == "min":
+            model.Minimize(objective)
+        else:
+            model.Maximize(objective)
     else:
-        model.Maximize(objective)
+        # minimize absolute value of the objective: we must linearize |sum(Jij * y_ij)|
+        # approach: scale float Jij to integers (precision), create an IntVar for the
+        # (scaled) objective, then use AddAbsEquality and minimize the absolute IntVar.
+        scale = int(precision)
+        # scaled integer coefficients
+        scaled = {ij: int(round(Jij * scale)) for ij, Jij in J.items()}
+        max_abs = sum(abs(c) for c in scaled.values())
+        if max_abs == 0:
+            # objective is identically zero; no need to set objective
+            pass
+        else:
+            obj_int = model.NewIntVar(-max_abs, max_abs, "obj_int")
+            # build linear expression for the scaled objective
+            lin = sum(c * y[ij] for ij, c in scaled.items())
+            model.Add(obj_int == lin)
+            abs_obj = model.NewIntVar(0, max_abs, "abs_obj")
+            model.AddAbsEquality(abs_obj, obj_int)
+            model.Minimize(abs_obj)
 
     # solve
     solver = cp_model.CpSolver()
@@ -76,10 +99,14 @@ def solve_extreme_k(A: np.ndarray,
         raise RuntimeError("No solution found (status=%s)" % status)
 
     x_sol = np.array([int(solver.Value(v)) for v in x], dtype=int)
-    return float(solver.ObjectiveValue()), x_sol
+    # compute the true (float) objective from J and solved y's because when using
+    # the 'closest' mode we minimized an integer proxy (abs) and solver.ObjectiveValue()
+    # will return that proxy; return the real weighted sum instead.
+    obj_val = sum(Jij * int(solver.Value(y[(i, j)])) for (i, j), Jij in J.items())
+    return float(obj_val), x_sol
 
 def phase_diagram_values(
-        A, D2, mu: float=1.0, 
+        A, D2, mu: float=1.0,Hamiltonian:object=Hamiltonian, 
         kmax:int=10, scale_max: int=80, scale_steps:int=1, k_steps:int=1):
     """
     Compute the phase diagram values for a given graph 
@@ -104,8 +131,8 @@ def phase_diagram_values(
     for k in range(2, kmax+1, k_steps):
         results[k] = {}
         for scale in range(1, scale_max+1, scale_steps):
-            gamma = scale * mu
-            hmin = solve_extreme_k(A, D2, k=k, mu=mu, gamma=gamma, sense="min")[0]
+            gamma = Hamiltonian.gamma_balancer(mu=mu, scale=scale)
+            hmin = solve_extreme_k(A, D2, k=k, mu=mu, gamma=gamma, sense="closest")[0]
             results[k][scale] = (mu/gamma, hmin)
     return results
 
