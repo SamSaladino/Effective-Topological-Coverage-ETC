@@ -80,7 +80,7 @@ def solve_extreme_k(A: np.ndarray,
 
 def phase_diagram_values(
         A, D2, mu: float=1.0, 
-        kmax=10, scale_max=80, scale_steps=1.0, k_steps=1.0):
+        kmax:int=10, scale_max: int=80, scale_steps:int=1, k_steps:int=1):
     """
     Compute the phase diagram values for a given graph 
     and Hamiltonian function.
