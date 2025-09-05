@@ -105,8 +105,10 @@ def solve_extreme_k(A: np.ndarray,
     obj_val = sum(Jij * int(solver.Value(y[(i, j)])) for (i, j), Jij in J.items())
     return float(obj_val), x_sol
 
+
+
 def phase_diagram_values(
-        A, D2, mu: float=1.0,Hamiltonian:object=Hamiltonian, 
+    A, D2, mu: float=1.0,Hamiltonian:object=Hamiltonian, 
         kmax:int=10, scale_max: int=80, scale_steps:int=1, k_steps:int=1):
     """
     Compute the phase diagram values for a given graph 
@@ -132,9 +134,115 @@ def phase_diagram_values(
         results[k] = {}
         for scale in range(1, scale_max+1, scale_steps):
             gamma = Hamiltonian.gamma_balancer(mu=mu, scale=scale)
-            hmin = solve_extreme_k(A, D2, k=k, mu=mu, gamma=gamma, sense="closest")[0]
+            hmin = sample_k_closest_to_zero(
+                H=Hamiltonian, k=k, mu=mu, gamma=scale*gamma, 
+                A=A, D2=D2, precision=1000, workers=8, time_limit_s=200, 
+                seed=12345)[0]
             results[k][scale] = (mu/gamma, hmin)
     return results
+
+def sample_k_closest_to_zero(
+        H:object= Hamiltonian,
+        k: int = 10,
+        mu: float = None,
+        gamma: float = None,
+        n_random: int = 500,
+        n_restarts: int = 10,
+        n_local_iters: int = 200,
+        swap_candidates: int = 50,
+        use_exact: bool = False,
+        A=None,
+        D2=None,
+        precision: int = 1000,
+        workers: int = 8,
+        time_limit_s: float = None,
+        seed: int = None,
+    ):
+    """
+    Search for a k-node subset whose Hamiltonian value is as close to zero as possible.
+
+    Strategy:
+    - Random sampling of `n_random` subsets, keep best few.
+    - Local greedy swap hillclimb from top random candidates (try up to n_restarts)
+      where in each local iteration we attempt random swaps of one in-subset with
+      one out-of-subset to reduce |H|.
+    - Optional exact solver fallback using `solve_extreme_k` when A and D2 are
+      provided and `use_exact=True`.
+
+    Returns: (best_value, best_subset_list)
+    """
+    import random
+    rng = random.Random(seed)
+    n = H.n
+    if not (0 < k <= n):
+        raise ValueError("k must be in 1..n")
+
+    if mu is None:
+        mu = 1.0
+    # if gamma None, Hamiltonian.compute will pick a default
+
+    # helper to eval H
+    def eval_H(sub):
+        return float(H.compute(sub, mu=mu, gamma=gamma)[0])
+
+    best_val = None
+    best_subset = None
+
+    # Random sampling phase
+    for _ in range(n_random):
+        subset = rng.sample(range(n), k)
+        val = eval_H(subset)
+        if best_val is None or abs(val) < abs(best_val):
+            best_val = val
+            best_subset = list(subset)
+            if abs(best_val) == 0.0:
+                return best_val, best_subset
+
+    # Local improvement from several restarts (start from best random and random others)
+    starts = [best_subset]
+    # add some random starts
+    for _ in range(max(0, n_restarts - 1)):
+        starts.append(rng.sample(range(n), k))
+
+    for start in starts:
+        cur = list(start)
+        cur_set = set(cur)
+        cur_val = eval_H(cur)
+        improved = True
+        it = 0
+        while improved and it < n_local_iters:
+            it += 1
+            improved = False
+            # sample candidate out-of-subset nodes to try swapping in
+            outs = [v for v in range(n) if v not in cur_set]
+            if not outs:
+                break
+            sampled_outs = rng.sample(outs, min(len(outs), swap_candidates))
+            # try all possible in-subset nodes (k smallish) with sampled outs
+            for u in list(cur):
+                for v in sampled_outs:
+                    new_subset = list(cur)
+                    # swap u out, v in
+                    new_subset.remove(u)
+                    new_subset.append(v)
+                    new_val = eval_H(new_subset)
+                    if abs(new_val) + 1e-12 < abs(cur_val):
+                        cur = new_subset
+                        cur_set = set(cur)
+                        cur_val = new_val
+                        improved = True
+                        break
+                if improved:
+                    break
+        # check result
+        if best_val is None or abs(cur_val) < abs(best_val):
+            best_val = cur_val
+            best_subset = list(cur)
+            if abs(best_val) == 0.0:
+                return best_val, best_subset
+
+    return best_val, best_subset
+
 
 if __name__ == "__main__":
     print("phase_diagrams module imported")
