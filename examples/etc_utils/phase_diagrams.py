@@ -108,7 +108,7 @@ def build_Jij(A: np.ndarray, Div2: np.ndarray, mu: float, gamma: float):
 
 def phase_diagram_values(
     A, D2, mu: float=1.0,Hamiltonian:object=Hamiltonian, gamma:float=1.0,
-        kmax:int=10, scale_max: int=80, scale_steps:int=1, k_steps:int=1):
+        kmax:int=10,scale_min: float=1.0, scale_max: int=80, scale_steps:int=1, k_steps:int=1):
     """
     Compute the phase diagram values for a given graph 
     and Hamiltonian function.
@@ -131,7 +131,7 @@ def phase_diagram_values(
     results = {}
     for k in range(2, kmax+1, k_steps):
         results[k] = {}
-        for scale in range(1, scale_max+1, scale_steps):
+        for scale in range(scale_min, scale_max+1, scale_steps):
             hmin = sample_k_closest_to_zero(
                 H=Hamiltonian, k=k, mu=mu, gamma=scale*gamma, 
                 A=A, D2=D2, precision=1000, workers=8, time_limit_s=200, 
