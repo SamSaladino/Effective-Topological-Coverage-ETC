@@ -131,9 +131,9 @@ def phase_diagram_values(
     results = {}
     for k in range(2, kmax+1, k_steps):
         results[k] = {}
-        for scale in range(scale_min, scale_max+1, scale_steps):
+        for scale in np.arange(scale_min, scale_max+scale_steps, scale_steps):
             hmin = sample_k_closest_to_zero(
-                H=Hamiltonian, k=k, mu=mu, gamma=scale*gamma, 
+                H=Hamiltonian, k=k, mu=mu, gamma=(1/scale)*gamma, 
                 A=A, D2=D2, precision=1000, workers=8, time_limit_s=200, 
                 seed=12345)[0]
             results[k][scale] = (mu/gamma, hmin)
