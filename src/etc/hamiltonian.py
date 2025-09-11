@@ -37,6 +37,7 @@ class Hamiltonian:
         if distance_matrix is None:
             # compute shortest path lengths (dict of dicts) and fill numpy array
             sp_len = dict(nx.all_pairs_shortest_path_length(G))
+            # fill D with inf initially
             D = np.full((self.n, self.n), np.inf, dtype=np.float64)
             for u, du in sp_len.items():
                 if u not in self.idx:
