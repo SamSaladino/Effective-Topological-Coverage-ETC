@@ -1,8 +1,7 @@
 import xml.etree.ElementTree as ET
-import pandas as pd
-import xml.etree.ElementTree as ET
-import ast
 import numpy as np
+import pandas as pd
+import ast
 
 class XMLParser:
     """Parse HUMAN1 SBML and extract identifiers present in the file.
@@ -46,6 +45,25 @@ class XMLParser:
     def split_and_clean(self, identifiers):
         """Split identifiers.org paths on '/' -> [['namespace','value'], ...]."""
         return [item.split("/") for item in identifiers]
+
+    def _first_of(self, values, default=None):
+        """Return the first non-empty value from a list of candidates.
+        
+        Skips None, empty strings, empty lists, and empty dicts.
+        """
+        for value in values:
+            if value not in (None, "", [], {}):
+                return value
+        return default
+
+    def _normalize_chebi(self, chebi_raw):
+        """Normalize CHEBI identifier from [namespace, value] pair.
+        
+        Extracts the value part from split identifier pair.
+        """
+        if isinstance(chebi_raw, list) and len(chebi_raw) > 1:
+            return chebi_raw[1]  # Return the value part (e.g., 'CHEBI:12345')
+        return chebi_raw
 
     def to_identifier_df(self) -> pd.DataFrame:
         """Return DataFrame indexed by HUMAN1_ID with common identifier columns.
