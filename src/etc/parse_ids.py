@@ -46,24 +46,38 @@ class XMLParser:
         """Split identifiers.org paths on '/' -> [['namespace','value'], ...]."""
         return [item.split("/") for item in identifiers]
 
-    def _first_of(self, values, default=None):
-        """Return the first non-empty value from a list of candidates.
-        
-        Skips None, empty strings, empty lists, and empty dicts.
-        """
-        for value in values:
-            if value not in (None, "", [], {}):
-                return value
-        return default
 
-    def _normalize_chebi(self, chebi_raw):
-        """Normalize CHEBI identifier from [namespace, value] pair.
-        
-        Extracts the value part from split identifier pair.
-        """
-        if isinstance(chebi_raw, list) and len(chebi_raw) > 1:
-            return chebi_raw[1]  # Return the value part (e.g., 'CHEBI:12345')
-        return chebi_raw
+    def get_chebi_numbers(self):
+            """
+            Returns a dictionary mapping HUMAN1 IDs to their respective ChEBI numbers.
+            
+            Parameters:
+            -----------
+            human_ids : list
+                List of HUMAN1 IDs to search for.
+
+            Returns:
+            --------
+            chebi_number : list
+                List with  corresponding ChEBI numbers.
+            """
+            # Initialize an empty dictionary to store the HUMAN1 IDs and ChEBI numbers
+            chebi_number = {}
+            for index,i in enumerate(self.df.Identifiers):
+                for j in i:      
+                    if j[0] == 'chebi':
+                        if len(j[1].split(':')) == 2:
+                            chebi_number[index] = j[1].split(':')[1]
+                        
+            return chebi_number
+    
+    def _first_of(self, identifiers, keys):
+        """Return the value for the first matching key in identifiers."""
+        for namespace, value in identifiers:
+            if namespace.lower() in keys:
+                return value
+        return None
+    
 
     def to_identifier_df(self) -> pd.DataFrame:
         """Return DataFrame indexed by HUMAN1_ID with common identifier columns.
