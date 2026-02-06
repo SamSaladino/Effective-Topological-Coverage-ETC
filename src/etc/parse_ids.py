@@ -103,18 +103,17 @@ class XMLParser:
 
         rows = []
         for metabolite_id, identifiers in zip(self.df.Metabolite_ID, self.df.Identifiers):
-            #chebi_raw = self._first_of(identifiers, {"chebi"})
-            #chebi = self._normalize_chebi(chebi_raw)
+            chebi_raw = self._first_of(identifiers, {"chebi"})
+            chebi = self._normalize_chebi(chebi_raw)
 
             kegg = self._first_of(identifiers, {"kegg.compound"})
-            print(kegg)
             metanetx = self._first_of(identifiers, {"metanetx.chemical"})
             vmhmetabolite = self._first_of(identifiers, {"vmhmetabolite"})
             hmdb = self._first_of(identifiers, {"hmdb"})
             lipidmaps = self._first_of(identifiers, {"lipidmaps"})
             pubchem = self._first_of(identifiers, {"pubchem.compound"})
 
-            #chebi_val = chebi if isinstance(chebi, str) and chebi else np.nan
+            chebi_val = chebi if isinstance(chebi, str) and chebi else np.nan
             kegg_val = kegg if isinstance(kegg, str) and kegg else np.nan
             metanetx_val = (
                 metanetx if isinstance(metanetx, str) and metanetx else np.nan
@@ -135,7 +134,7 @@ class XMLParser:
             rows.append(
                 {
                     "HUMAN1_ID": metabolite_id,
-                    #"chebi": chebi_val,
+                    "chebi": chebi_val,
                     "kegg": kegg_val,
                     "metanetx": metanetx_val,
                     "vmhmetabolite": vmh_val,
