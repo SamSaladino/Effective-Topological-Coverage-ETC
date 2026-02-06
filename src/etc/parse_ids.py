@@ -1,8 +1,7 @@
 import xml.etree.ElementTree as ET
-import pandas as pd
-import xml.etree.ElementTree as ET
-import ast
 import numpy as np
+import pandas as pd
+import ast
 
 class XMLParser:
     """Parse HUMAN1 SBML and extract identifiers present in the file.
@@ -47,6 +46,52 @@ class XMLParser:
         """Split identifiers.org paths on '/' -> [['namespace','value'], ...]."""
         return [item.split("/") for item in identifiers]
 
+
+    def get_chebi_numbers(self):
+            """
+            Returns a dictionary mapping HUMAN1 IDs to their respective ChEBI numbers.
+            
+            Parameters:
+            -----------
+            human_ids : list
+                List of HUMAN1 IDs to search for.
+
+            Returns:
+            --------
+            chebi_number : list
+                List with  corresponding ChEBI numbers.
+            """
+            # Initialize an empty dictionary to store the HUMAN1 IDs and ChEBI numbers
+            chebi_number = {}
+            for index,i in enumerate(self.df.Identifiers):
+                for j in i:      
+                    if j[0] == 'chebi':
+                        if len(j[1].split(':')) == 2:
+                            chebi_number[index] = j[1].split(':')[1]
+                        
+            return chebi_number
+    
+    def _first_of(self, identifiers, key):
+        """Return the value for the first matching key in identifiers."""
+        for item in identifiers:
+            if len(item) < 2:
+                continue
+            namespace, value = item[0], item[1]
+            if (isinstance(key, (set, frozenset)) and namespace in key) or (
+                not isinstance(key, (set, frozenset)) and namespace == key
+            ):
+                return value
+        return None
+
+    
+    def _normalize_chebi(self, chebi_raw):
+        """Normalize ChEBI identifier to just the numeric part."""
+        if chebi_raw is None:
+            return None
+        if chebi_raw.lower().startswith("chebi:"):
+            return chebi_raw.split(":", 1)[1]
+        return chebi_raw
+
     def to_identifier_df(self) -> pd.DataFrame:
         """Return DataFrame indexed by HUMAN1_ID with common identifier columns.
 
@@ -61,10 +106,6 @@ class XMLParser:
             chebi_raw = self._first_of(identifiers, {"chebi"})
             chebi = self._normalize_chebi(chebi_raw)
 
-            smiles = self._first_of(identifiers, {"smiles", "smile"})
-            inchikey = self._first_of(
-                identifiers, {"inchikey", "inchi.key", "inchi_key"}
-            )
             kegg = self._first_of(identifiers, {"kegg.compound"})
             metanetx = self._first_of(identifiers, {"metanetx.chemical"})
             vmhmetabolite = self._first_of(identifiers, {"vmhmetabolite"})
@@ -73,10 +114,6 @@ class XMLParser:
             pubchem = self._first_of(identifiers, {"pubchem.compound"})
 
             chebi_val = chebi if isinstance(chebi, str) and chebi else np.nan
-            smiles_val = smiles if isinstance(smiles, str) and smiles else np.nan
-            inchikey_val = (
-                inchikey if isinstance(inchikey, str) and inchikey else np.nan
-            )
             kegg_val = kegg if isinstance(kegg, str) and kegg else np.nan
             metanetx_val = (
                 metanetx if isinstance(metanetx, str) and metanetx else np.nan
@@ -98,8 +135,6 @@ class XMLParser:
                 {
                     "HUMAN1_ID": metabolite_id,
                     "chebi": chebi_val,
-                    "smiles": smiles_val,
-                    "inchikey": inchikey_val,
                     "kegg": kegg_val,
                     "metanetx": metanetx_val,
                     "vmhmetabolite": vmh_val,
