@@ -71,13 +71,26 @@ class XMLParser:
                         
             return chebi_number
     
-    def _first_of(self, identifiers, keys):
+    def _first_of(self, identifiers, key):
         """Return the value for the first matching key in identifiers."""
-        for namespace, value in identifiers:
-            if namespace.lower() in keys:
+        for item in identifiers:
+            if len(item) < 2:
+                continue
+            namespace, value = item[0], item[1]
+            if (isinstance(key, (set, frozenset)) and namespace in key) or (
+                not isinstance(key, (set, frozenset)) and namespace == key
+            ):
                 return value
         return None
+
     
+    def _normalize_chebi(self, chebi_raw):
+        """Normalize ChEBI identifier to just the numeric part."""
+        if chebi_raw is None:
+            return None
+        if chebi_raw.lower().startswith("chebi:"):
+            return chebi_raw.split(":", 1)[1]
+        return chebi_raw
 
     def to_identifier_df(self) -> pd.DataFrame:
         """Return DataFrame indexed by HUMAN1_ID with common identifier columns.
@@ -90,25 +103,18 @@ class XMLParser:
 
         rows = []
         for metabolite_id, identifiers in zip(self.df.Metabolite_ID, self.df.Identifiers):
-            chebi_raw = self._first_of(identifiers, {"chebi"})
-            chebi = self._normalize_chebi(chebi_raw)
+            #chebi_raw = self._first_of(identifiers, {"chebi"})
+            #chebi = self._normalize_chebi(chebi_raw)
 
-            smiles = self._first_of(identifiers, {"smiles", "smile"})
-            inchikey = self._first_of(
-                identifiers, {"inchikey", "inchi.key", "inchi_key"}
-            )
             kegg = self._first_of(identifiers, {"kegg.compound"})
+            print(kegg)
             metanetx = self._first_of(identifiers, {"metanetx.chemical"})
             vmhmetabolite = self._first_of(identifiers, {"vmhmetabolite"})
             hmdb = self._first_of(identifiers, {"hmdb"})
             lipidmaps = self._first_of(identifiers, {"lipidmaps"})
             pubchem = self._first_of(identifiers, {"pubchem.compound"})
 
-            chebi_val = chebi if isinstance(chebi, str) and chebi else np.nan
-            smiles_val = smiles if isinstance(smiles, str) and smiles else np.nan
-            inchikey_val = (
-                inchikey if isinstance(inchikey, str) and inchikey else np.nan
-            )
+            #chebi_val = chebi if isinstance(chebi, str) and chebi else np.nan
             kegg_val = kegg if isinstance(kegg, str) and kegg else np.nan
             metanetx_val = (
                 metanetx if isinstance(metanetx, str) and metanetx else np.nan
@@ -129,9 +135,7 @@ class XMLParser:
             rows.append(
                 {
                     "HUMAN1_ID": metabolite_id,
-                    "chebi": chebi_val,
-                    "smiles": smiles_val,
-                    "inchikey": inchikey_val,
+                    #"chebi": chebi_val,
                     "kegg": kegg_val,
                     "metanetx": metanetx_val,
                     "vmhmetabolite": vmh_val,
