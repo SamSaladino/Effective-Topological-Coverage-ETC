@@ -33,7 +33,7 @@ def solve_extreme_k(A: np.ndarray,
                     sense: str = "closest",
                     time_limit_s: float = None,
                     workers: int = 8,
-                    precision: int = 1000):
+                    precision: int = 2000):
     """
     Exact H_min / H_max for selecting exactly k nodes.
     Returns: (objective_value, x_sol: {0,1}^n)
@@ -153,7 +153,7 @@ def sample_k_closest_to_zero(
         use_exact: bool = False,
         A=None,
         D2=None,
-        precision: int = 1000,
+        precision: int = 2000,
         workers: int = 8,
         time_limit_s: float = None,
         seed: int = None,
