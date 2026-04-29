@@ -2,6 +2,20 @@ from ortools.sat.python import cp_model
 import numpy as np
 from etc.hamiltonian import Hamiltonian
 
+
+def frange(start: float, stop: float, step: float):
+    """Yield floating-point values from start to stop (inclusive) by step."""
+    if step == 0:
+        raise ValueError("step must be non-zero")
+    if step > 0:
+        while start <= stop + 1e-12:
+            yield float(start)
+            start += step
+    else:
+        while start >= stop - 1e-12:
+            yield float(start)
+            start += step
+
 def build_Jij(A: np.ndarray, Div2: np.ndarray, mu: float, gamma: float):
     """ Construct the matrix with all the constant parameters in the graph
     Parameters
@@ -132,10 +146,12 @@ def phase_diagram_values(
     results = {}
     for k in range(2, kmax+1, k_steps):
         results[k] = {}
-        for scale in range(0.25, scale_max+0.25, scale_steps):
+        for scale in frange(0.25, scale_max + 0.25, scale_steps):
             hmin = sample_k_closest_to_zero(
-                H=Hamiltonian, k=k, mu=mu, gamma=scale*gamma, 
-                A=A, D2=D2, precision=1000, workers=8, time_limit_s=200, 
+                H=Hamiltonian,
+                k=k,
+                mu=mu,
+                gamma=scale * gamma,
                 seed=12345)[0]
             results[k][scale] = (mu/gamma, hmin)
     return results
