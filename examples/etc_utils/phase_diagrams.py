@@ -109,7 +109,7 @@ def solve_extreme_k(A: np.ndarray,
 
 def phase_diagram_values(
     A, D2, mu: float=1.0,Hamiltonian:object=Hamiltonian, gamma:float=1.0,
-        kmax:int=10, scale_max: float=80, scale_steps: float=0.5, k_steps:int=1):
+        kmax:int=10, scale_max: float=80, scale_steps: float=0.25, k_steps:int=1):
     """
     Compute the phase diagram values for a given graph 
     and Hamiltonian function.
@@ -132,7 +132,7 @@ def phase_diagram_values(
     results = {}
     for k in range(2, kmax+1, k_steps):
         results[k] = {}
-        for scale in range(0.5, scale_max+0.5, scale_steps):
+        for scale in range(0.25, scale_max+0.25, scale_steps):
             hmin = sample_k_closest_to_zero(
                 H=Hamiltonian, k=k, mu=mu, gamma=scale*gamma, 
                 A=A, D2=D2, precision=1000, workers=8, time_limit_s=200, 
@@ -150,12 +150,6 @@ def sample_k_closest_to_zero(
         n_restarts: int = 10,
         n_local_iters: int = 200,
         swap_candidates: int = 50,
-        use_exact: bool = False,
-        A=None,
-        D2=None,
-        precision: int = 1000,
-        workers: int = 8,
-        time_limit_s: float = None,
         seed: int = None,
     ):
     """
