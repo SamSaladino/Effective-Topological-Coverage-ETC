@@ -137,7 +137,7 @@ def phase_diagram_values(
                 H=Hamiltonian, k=k, mu=mu, gamma=scale*gamma, 
                 A=A, D2=D2, precision=1000, workers=8, time_limit_s=200, 
                 seed=12345)[0]
-            results[k][scale] = (scale, hmin)
+            results[k][scale] = (mu/gamma, hmin)
     return results
 
 
