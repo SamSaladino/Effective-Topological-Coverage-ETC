@@ -122,7 +122,7 @@ def solve_extreme_k(A: np.ndarray,
 
 
 def phase_diagram_values(
-    A, D2, mu: float=1.0,Hamiltonian:object=Hamiltonian, gamma:float=1.0,
+    mu: float=1.0,Hamiltonian:object=Hamiltonian, gamma:float=1.0,
         kmax:int=10, scale_max: float=80, scale_steps: float=0.25, k_steps:int=1):
     """
     Compute the phase diagram values for a given graph 
@@ -153,7 +153,7 @@ def phase_diagram_values(
                 mu=mu,
                 gamma=scale * gamma,
                 seed=12345)[0]
-            results[k][scale] = (mu/gamma, hmin)
+            results[k][scale] = (mu/gamma*scale, hmin)
     return results
 
 
