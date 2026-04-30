@@ -143,18 +143,26 @@ def phase_diagram_values(
     Hamiltonian : object
         Hamiltonian class to use
     """
-    results = {}
-    for k in range(2, kmax+1, k_steps):
-        results[k] = {}
-        for scale in frange(0.25, scale_max + 0.25, scale_steps):
+    k_values = np.arange(2, kmax + 1, k_steps)
+    scale_values = np.arange(0.25, scale_max + scale_steps, scale_steps)
+
+    H = np.zeros((len(k_values), len(scale_values)))
+    ratio = np.zeros_like(H)
+
+    for i_k, k in enumerate(k_values):
+        for j_s, scale in enumerate(scale_values):
+            gamma_scaled = scale * gamma
             hmin = sample_k_closest_to_zero(
                 H=Hamiltonian,
-                k=k,
+                k=int(k),
                 mu=mu,
-                gamma=scale * gamma,
-                seed=12345)[0]
-            results[k][scale] = (mu/gamma*scale, hmin)
-    return results
+                gamma=gamma_scaled,
+                seed=12345,
+            )[0]
+            H[i_k, j_s] = hmin
+            ratio[i_k, j_s] = mu / gamma_scaled if gamma_scaled != 0 else float("inf")
+
+    return k_values, ratio, H
 
 
 def sample_k_closest_to_zero(
