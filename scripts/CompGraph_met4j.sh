@@ -4,7 +4,7 @@ echo "This is the good file"
 
 # Set path to data
 path_to_data=$(pwd)
-resources_dir="$path_to_data/resources"
+resources_dir="$path_to_data/data/resources"
 generated_dir="$resources_dir/generated"
 
 # Define input files
