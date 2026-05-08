@@ -1,6 +1,6 @@
 import numpy as np
 from itertools import combinations
-from .hamiltonian import Hamiltonian
+from typing import Sequence, Tuple, Optional
 
 class Coverage:
     """
