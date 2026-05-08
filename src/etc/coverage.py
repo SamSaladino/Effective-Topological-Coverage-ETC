@@ -1,30 +1,38 @@
 import numpy as np
-import networkx as nx
-from scipy import sparse
-from typing import Sequence, Optional, Tuple, List, Dict
+from itertools import combinations
 from .hamiltonian import Hamiltonian
 
-def Energy (
-    G: nx.Graph,
-    S_idx: Sequence[int],
-    mu: float = 1.0,
-    gamma: float = 1.0,
-    distance_matrix: Optional[np.ndarray] = None
-) -> Tuple[float, float, float]:
-    """Compute the energy of a subset of nodes in a graph.
-
-    Args:
-        G: Input graph (networkx Graph).
-        S_idx: Indices of the subset of nodes to evaluate.
-        mu: Weight for the coverage term.
-        gamma: Weight for the diversity term.
-        distance_matrix: Optional precomputed distance matrix (n x n).
-
-    Returns:
-        A tuple containing:
-            - Energy value (float)
-            - Coverage term (float)
-            - Diversity term (float)
+class Coverage:
     """
-    E = abs(Hamiltonian(G, distance_matrix))
-    return E.compute(S_idx, mu=mu, gamma=gamma)
+    Coverage metric built on top of Hamiltonian object.
+    Is a normalize value by the minimun asn maximun of Energy
+    for a given k subset of nodes.
+    """
+
+    def __init__(self, hamiltonian):
+        self.H = hamiltonian
+
+    # -----------------------------------------------------------#
+    # Energy definition
+    # -----------------------------------------------------------#
+
+    def energy (self,S_idx, 
+                mu: float = 1.0, gamma: float = 1.0
+                ) -> float:
+        """
+        Compute the energy of a subset of nodes S_idx.
+        Where E = |H(S_idx)|
+
+        Returns:
+        --------
+        E : float
+            The energy of the subset S_idx.
+        """
+
+        value, t1, t2 = self.H.compute(S_idx, mu=mu, gamma=gamma)
+
+        return abs(value)
+    
+    # -----------------------------------------------------------#
+    # Energy minimization
+    # -----------------------------------------------------------#
