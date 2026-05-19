@@ -137,55 +137,95 @@ class Coverage:
     # Energy minimization
     # -----------------------------------------------------------#
 
-    def minimize_energy(self, n, k,S0,
-                        mu: float = 1.0,
-                        gamma: float = 1.0, 
-                        steps = 10000,
+    def minimize_energy(self, S0, n,
+                        mu: float = 1.0, 
+                        gamma: float = 1.0,
                         Tmax: float =1.0,
-                        Tmin: float = 1.0,
-                        cooling_: float = 0.99,
-                        seed: int = 42
-                        ) -> Tuple[np.ndarray, float, list]:
-        """Minimize E using simulated annealing.
+                        Tmin: float =1e-6,
+                        cooloing : float = 0.995,
+                        seed: int = 42,
+                        steps: int = 1000
+                        ):
+        """
+        Minimize E using simulated anneling.
+        S0 is the initial subset of nodes closest to the minimum energy configuration.
+        S0[i] = 1 if node i is in the subset, 0 otherwise.
+        
+        Constraints:
+        sum(S0) = k is preserved during the optimization.
+        
         Returns:
         --------
-        min_energy_subset : np.ndarray
+        S_min : np.ndarray
             The subset of nodes with the minimum energy.
-        min_energy : float
+        E_min : float
             The minimum energy value.
         """
         rng = np.random.default_rng(seed)
-        # Initialize with a random subset
-        min_energy = self.energy(S0, mu=mu, gamma=gamma)
+        
+        # initial configuration
+        S_current = S0.copy()
 
-        best_S = S0.copy()
-        best_E = min_energy
+        # compute initial energy
+        E_current = self.energy(S_current, mu=mu, gamma=gamma)
+        k = S_current.sum()
 
+        best_S = S_current.copy()
+        best_E = E_current
+
+        # Temperature
         T = Tmax
         history = []
 
+        # Anneling loop
         for step in range(steps):
-            # Propose a new subset by flipping one random bit
-            proposal_S = best_S.copy()
+            
+            proposal_S = S_current.copy()
+            #Find occupied and unoccupied indices
+            occupied_indices = np.where(proposal_S == 1)[0]
+            unoccupied_indices = np.where(proposal_S == 0)[0]
 
-            # chose nodes to flip
-            idx_to_flip = rng.integers(n)
+            # Swap move: randomly select one occupied and one unoccupied
+            # to swap their states
 
-            # Flip the bit at idx_to_flip
-            proposal_S[idx_to_flip] = 1 - proposal_S[idx_to_flip]  
+            remove_node = rng.choice(occupied_indices)
+            add_node = rng.choice(unoccupied_indices)
 
-            # Compute the energy of the proposed subset
-            E_new = self.energy(proposal_S, mu=mu, gamma=gamma)
+            proposal_S[remove_node] = 0
+            proposal_S[add_node] = 1
 
-            # Accept with Metropolis criterion
-            if E_new < best_E or rng.random() < np.exp((best_E - E_new) / T):
-                best_S, best_E = proposal_S, E_new
+            # Compute new energy
+            proposal_E = self.energy(
+                proposal_S,
+                mu=mu, 
+                gamma=gamma
+                )
+            
+            delta_E = proposal_E - E_current
 
-            history.append(best_E)
+            # Metropolis criterion
+            if delta_E < 0:
+                accept = True
+            else:
+                prob = np.exp(-delta_E / T)
+                accept = rng.random() < prob
+            
+            # Accept move
+            if accept:
+                S_current = proposal_S
+                E_current = proposal_E
 
-            # Cool down the temperature
-            T *= cooling_
+                # Update best solution
+                if E_current < best_E:
+                    best_S = S_current.copy()
+                    best_E = E_current
+        
+            # Store history
+            history.append((E_current))
+
+            # Cool down
+            T *= cooloing
             if T < Tmin:
                 break
-        
-        return best_S, best_E, history
+
+            return best_S, best_E, history
