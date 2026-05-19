@@ -1,38 +1,8 @@
 import numpy as np
 import random
 import matplotlib.pyplot as plt
+from pathlib import Path
 from etc.hamiltonian import Hamiltonian
-
-def frange(start: float, stop: float, step: float):
-    """Yield floating-point values from start to stop (inclusive) by step.
-    Parameters
-    ----------
-    start : float
-        The starting value of the range.
-    stop : float
-        The stopping value of the range.
-    step : float
-        The step size for the range.
-    Returns
-    -------
-    float
-        The next value in the range.
-    Raises
-    ------
-    ValueError
-        If step is zero.
-    """
-
-    if step == 0:
-        raise ValueError("step must be non-zero")
-    if step > 0:
-        while start <= stop + 1e-12:
-            yield float(start)
-            start += step
-    else:
-        while start >= stop - 1e-12:
-            yield float(start)
-            start += step
 
 
 def build_Jij(A: np.ndarray, Div2: np.ndarray, mu: float, gamma: float):
@@ -171,8 +141,8 @@ def sample_k_closest_to_zero(
 def landscape_diagram_values(mu: float=1.0,
                             Hamiltonian:object=Hamiltonian, 
                             gamma:float=1.0,
-                            kmax:int=10, scale_max: float=80, 
-                            scale_min: float=0.25, 
+                            kmax:int=10, scale_max: float=80,
+                            scale_min: float=0.25,
                             scale_steps: float=0.25,
                             k_steps:int=1):
     """
@@ -203,8 +173,8 @@ def landscape_diagram_values(mu: float=1.0,
         2D array of Hamiltonian values for each (k, scale) pair.
     """
     k_values = np.arange(2, kmax + 1, k_steps)
-    scale_values = frange(
-        scale_min, scale_max + scale_steps, scale_steps)
+    # Use numpy.arange for scale values (inclusive stop via +scale_steps)
+    scale_values = np.arange(scale_min, scale_max + scale_steps, scale_steps)
 
     H = np.zeros((len(k_values), len(scale_values)))
     ratio = np.zeros_like(H)
@@ -274,12 +244,8 @@ def plot_balance_landscape(
         k_steps=int(k_steps),
     )
 
-    # Scale values
-    scale_values = np.frange(
-        scale_min,
-        scale_max + scale_steps,
-        scale_steps,
-    )
+    # Scale values using numpy.arange for consistency with phase plotting
+    scale_values = np.arange(scale_min, scale_max + scale_steps, scale_steps)
 
     # Plot extent
     extent = [
@@ -304,33 +270,57 @@ def plot_balance_landscape(
         cmap=cmap,
         extent=extent,
     )
+
+    # Ensure k axis shows integer tick values when appropriate
+    try:
+        k_min = float(np.min(k_values))
+        k_max = float(np.max(k_values))
+        int_ticks = np.arange(int(np.ceil(k_min)), int(np.floor(k_max)) + 1)
+        if len(int_ticks) > 0:
+            ax.set_yticks(int_ticks)
+            ax.set_yticklabels([str(int(t)) for t in int_ticks])
+    except Exception:
+        # if k_values is not numeric or any error occurs, fall back to default ticks
+        pass
     # Contours
     if show_transitions:
+        # Only draw contours when H is at least 2x2
+        if H.shape[0] >= 2 and H.shape[1] >= 2:
+            # Compute min/max ignoring NaNs and ensure levels are increasing
+            try:
+                h_min = np.nanmin(H)
+                h_max = np.nanmax(H)
+            except Exception:
+                h_min = np.nan
+                h_max = np.nan
 
-        h_min, h_max = np.nanmin(H), np.nanmax(H)
+            # Skip contouring if H contains only NaNs or is effectively constant
+            if np.isnan(h_min) or np.isnan(h_max) or h_max <= h_min + 1e-12:
+                # Not enough variation to draw meaningful contours
+                pass
+            else:
+                contour_levels = np.linspace(
+                    h_min,
+                    h_max,
+                    transition_levels,
+                )
 
-        contour_levels = np.linspace(
-            h_min,
-            h_max,
-            transition_levels,
-        )
+                cs = ax.contour(
+                    scale_values,
+                    k_values,
+                    H,
+                    levels=contour_levels,
+                    colors=contour_color,
+                    linewidths=0.7,
+                    alpha=0.5,
+                )
 
-        cs = ax.contour(
-            scale_values,
-            k_values,
-            H,
-            levels=contour_levels,
-            colors=contour_color,
-            linewidths=0.7,
-            alpha=0.5,
-        )
-
-        ax.clabel(
-            cs,
-            inline=True,
-            fontsize=7,
-            fmt="%.3f",
-        )
+                ax.clabel(
+                    cs,
+                    inline=True,
+                    fontsize=7,
+                    fmt="%.3f",
+                )
 
     # Highlight scaling factor
     if highlight_scale is not None:
@@ -350,7 +340,7 @@ def plot_balance_landscape(
     cbar = fig.colorbar(im, ax=ax)
 
     cbar.set_label(
-        r"$H \approx 0|$"
+        r"$H \approx 0$"
     )
 
     # Labels
@@ -387,19 +377,40 @@ def plot_balance_landscape(
         )
 
     # Save figure
-    filename = (
-        f"BalanceLandscape_{title}.png"
-    )
-
-    plt.savefig(
-        figures_dir / filename,
-        dpi=300,
-    )
+    if figures_dir is not None:
+        figures_dir = Path(figures_dir)
+        figures_dir.mkdir(parents=True, exist_ok=True)
+        filename = f"BalanceLandscape_{title}.png"
+        fig.savefig(
+            figures_dir / filename,
+            dpi=300,
+            bbox_inches="tight",
+        )
 
     plt.show()
 
-    return fig, ax, (
-        k_values,
-        ratio,
-        H,
+    # Return objects for programmatic use/tests
+    return fig, ax, (k_values, ratio, H)
+
+
+if __name__ == "__main__":
+    import networkx as nx
+
+    figures_dir = Path("figs")
+    G = nx.erdos_renyi_graph(150, 0.05, seed=42)
+    fig, ax, (k_values, ratio, H) = plot_balance_landscape(
+        G,
+        mu=1.0,
+        gamma=1.0,
+        kmax=20,
+        scale_max=3,
+        scale_steps=0.5,
+        k_steps=1,
+        show_transitions=False,
+        figures_dir=figures_dir,
+        title="ER_test",
     )
+
+    print("H.shape =", H.shape)
+    print("Saved figure to", figures_dir)
+
