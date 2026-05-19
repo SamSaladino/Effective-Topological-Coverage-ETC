@@ -136,3 +136,56 @@ class Coverage:
     # -----------------------------------------------------------#
     # Energy minimization
     # -----------------------------------------------------------#
+
+    def minimize_energy(self, n, k,S0,
+                        mu: float = 1.0,
+                        gamma: float = 1.0, 
+                        steps = 10000,
+                        Tmax: float =1.0,
+                        Tmin: float = 1.0,
+                        cooling_: float = 0.99,
+                        seed: int = 42
+                        ) -> Tuple[np.ndarray, float, list]:
+        """Minimize E using simulated annealing.
+        Returns:
+        --------
+        min_energy_subset : np.ndarray
+            The subset of nodes with the minimum energy.
+        min_energy : float
+            The minimum energy value.
+        """
+        rng = np.random.default_rng(seed)
+        # Initialize with a random subset
+        min_energy = self.energy(S0, mu=mu, gamma=gamma)
+
+        best_S = S0.copy()
+        best_E = min_energy
+
+        T = Tmax
+        history = []
+
+        for step in range(steps):
+            # Propose a new subset by flipping one random bit
+            proposal_S = best_S.copy()
+
+            # chose nodes to flip
+            idx_to_flip = rng.integers(n)
+
+            # Flip the bit at idx_to_flip
+            proposal_S[idx_to_flip] = 1 - proposal_S[idx_to_flip]  
+
+            # Compute the energy of the proposed subset
+            E_new = self.energy(proposal_S, mu=mu, gamma=gamma)
+
+            # Accept with Metropolis criterion
+            if E_new < best_E or rng.random() < np.exp((best_E - E_new) / T):
+                best_S, best_E = proposal_S, E_new
+
+            history.append(best_E)
+
+            # Cool down the temperature
+            T *= cooling_
+            if T < Tmin:
+                break
+        
+        return best_S, best_E, history
