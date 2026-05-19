@@ -144,7 +144,7 @@ class Coverage:
                         Tmin: float =1e-6,
                         cooloing : float = 0.995,
                         seed: int = 42,
-                        steps: int = 1000
+                        steps: int = 10000
                         ):
         """
         Minimize E using simulated anneling.
