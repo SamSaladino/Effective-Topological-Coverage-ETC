@@ -31,7 +31,7 @@ class Coverage:
 
         value, _ , _ = self.H.compute(S_idx, mu=mu, gamma=gamma)
 
-        return abs(value)
+        return abs(value),value
     
     # -----------------------------------------------------------#
     # Energy sampling
@@ -67,7 +67,7 @@ class Coverage:
             nodes_idx = rng.choice(n, size=k, replace=False)
             S_index[nodes_idx] = 1
 
-            E = self.energy(S_index, mu=mu, gamma=gamma)
+            E = self.energy(S_index, mu=mu, gamma=gamma)[0]
             energies.append(E)
             samples.append(S_index.copy())
 
@@ -123,7 +123,7 @@ class Coverage:
             
             S_index[nodes_idx] = 1
             
-            E = self.energy(S_index, mu=mu, gamma=gamma)
+            E = self.energy(S_index, mu=mu, gamma=gamma)[0]
             energies.append(E)
             samples.append(S_index.copy())
         
@@ -167,7 +167,7 @@ class Coverage:
         S_current = S0.copy()
 
         # compute initial energy
-        E_current = self.energy(S_current, mu=mu, gamma=gamma)
+        E_current = self.energy(S_current, mu=mu, gamma=gamma)[0]
         k = S_current.sum()
 
         best_S = S_current.copy()
@@ -199,8 +199,7 @@ class Coverage:
                 proposal_S,
                 mu=mu, 
                 gamma=gamma
-                )
-            
+                )[0]
             delta_E = proposal_E - E_current
 
             # Metropolis criterion
