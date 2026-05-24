@@ -2,7 +2,9 @@ from ortools.sat.python import cp_model
 import numpy as np
 from etc.hamiltonian import Hamiltonian
 
-
+# ---------------------------------------------------------------------------
+# Initial outils
+# ---------------------------------------------------------------------------
 def frange(start: float, stop: float, step: float):
     """Yield floating-point values from start to stop (inclusive) by step."""
     if step == 0:
@@ -37,6 +39,10 @@ def build_Jij(A: np.ndarray, Div2: np.ndarray, mu: float, gamma: float):
             if Jij != 0.0:
                 J[(i,j)] = float(Jij)
     return J
+
+
+
+
 
 
 def solve_extreme_k(A: np.ndarray,
@@ -260,6 +266,94 @@ def sample_k_closest_to_zero(
                 return best_val, best_subset
 
     return best_val, best_subset
+
+
+def sample_k_range_closest_to_zero(
+        H: object = Hamiltonian,
+        k_min: int = 1,
+        k_max: int = 10,
+        mu: float = None,
+        gamma: float = None,
+        delta: float = 0.0,
+        n_random: int = 500,
+        n_restarts: int = 10,
+        n_local_iters: int = 200,
+        swap_candidates: int = 50,
+        seed: int = None,
+        return_all: bool = True,
+    ):
+    """
+    Sweep a range of k values while keeping mu and gamma fixed, and search for
+    the k-node subset whose Hamiltonian value is closest to zero for each k.
+
+    Parameters
+    ----------
+    H : object
+        Hamiltonian instance.
+    k_min : int
+        Smallest k to evaluate.
+    k_max : int
+        Largest k to evaluate.
+    mu : float
+        Fixed mu parameter used for every k.
+    gamma : float
+        Fixed gamma parameter used for every k.
+    delta : float
+        Keep only results with abs(H) <= delta. Use 0.0 for exact zero only.
+    n_random, n_restarts, n_local_iters, swap_candidates, seed : int
+        Search controls forwarded to sample_k_closest_to_zero.
+    return_all : bool
+        If True, return every k result together with the filtered matches.
+
+    Returns
+    -------
+    results : list[dict]
+        Per-k records containing k, H, abs_H, subset, and within_delta.
+    best_overall : dict | None
+        Record with the smallest abs(H) across the full k range.
+    filtered : list[dict]
+        Only the records that satisfy abs(H) <= delta.
+    """
+    if k_min > k_max:
+        raise ValueError("k_min must be <= k_max")
+    if delta < 0:
+        raise ValueError("delta must be non-negative")
+
+    results = []
+    best_overall = None
+    filtered = []
+
+    for k in range(int(k_min), int(k_max) + 1):
+        best_val, best_subset = sample_k_closest_to_zero(
+            H=H,
+            k=k,
+            mu=mu,
+            gamma=gamma,
+            n_random=n_random,
+            n_restarts=n_restarts,
+            n_local_iters=n_local_iters,
+            swap_candidates=swap_candidates,
+            seed=seed,
+        )
+
+        record = {
+            "k": k,
+            "H": float(best_val),
+            "abs_H": float(abs(best_val)),
+            "subset": list(best_subset),
+            "within_delta": abs(best_val) <= delta,
+        }
+        results.append(record)
+
+        if record["within_delta"]:
+            filtered.append(record)
+
+        if best_overall is None or record["abs_H"] < best_overall["abs_H"]:
+            best_overall = record
+
+    if return_all:
+        return results, best_overall, filtered
+    return filtered, best_overall
 
 
 if __name__ == "__main__":
