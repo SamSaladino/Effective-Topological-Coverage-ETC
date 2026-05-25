@@ -157,7 +157,7 @@ class Hamiltonian:
         t2 = gamma * float(np.triu(sub, k=1).sum())
         return t1 + t2, t1, t2
 
-    # -------------------- Energy and sampling ---------------------
+    # -------------------- Energy ---------------------
     def energy (
             self,S_idx: Sequence[int], mu: float = 1.0,  
             gamma: Optional[float] = None
