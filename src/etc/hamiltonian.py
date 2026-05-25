@@ -125,9 +125,18 @@ class Hamiltonian:
         Raises
         - TypeError if S_idx is not a sequence of integers.
         - IndexError if any index in S_idx is out of range [0, n).
+        - IndexError if all indices are binary (0 or 1) but not valid node indices.
         """
+        # Validate S_idx input
         if not isinstance(S_idx, (list, tuple, np.ndarray)):
             raise TypeError("S_idx must be a sequence of integers")
+        # Check if S_idx looks like a binary mask but contains no valid indices
+        if all(isinstance(
+            x, (int, np.integer)) and (x == 0 or x == 1) for x in S_idx
+            ):
+            raise IndexError(
+                "S_idx appears to be a binary mask but contains no valid node indices"
+                )
 
         S_idx_arr = np.asarray(S_idx, dtype=np.int64)
         n = self.A.shape[0]
@@ -148,6 +157,24 @@ class Hamiltonian:
         t2 = gamma * float(np.triu(sub, k=1).sum())
         return t1 + t2, t1, t2
 
+    # -------------------- Energy and sampling ---------------------
+    def energy (
+            self,S_idx: Sequence[int], mu: float = 1.0,  gamma: Optional[float] = None
+            ) -> float:
+        """Compute the energy of a subset of nodes S_idx.
+        Where E = |H(S_idx)|
+        Returns:
+        --------
+        E : float
+            The energy of the subset S_idx.
+        """
+        H, _, _ = self.compute(S_idx, mu=mu, gamma=gamma)
+        return abs(H)
+    
+    def sampling_energy(
+            self,
+    ):
+        return 0
     # ---------------- Graph properties & parameter estimation -----
     @staticmethod
     def graph_density(G: nx.Graph) -> float:
