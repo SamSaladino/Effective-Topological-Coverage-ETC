@@ -5,85 +5,48 @@ from etc.hamiltonian import Hamiltonian
 
 class Sampler:
     """
-    Sampling and optimization methods for exploring
-    the Hamiltonian energy landscape.
+    Sampling and optimization methods for exploring the Hamiltonian 
+    energy landscape.
 
-    This class does NOT define the Hamiltonian itself.
-    It operates on an existing Hamiltonian object.
+    This class does NOT define the Hamiltonian itself. It operates 
+    on an existing Hamiltonian object.
     """
 
-    def __init__(
-         self,
-         hamiltonian: Hamiltonian,
-         seed: Optional[int] = 42,
-     ) -> None:
+    def __init__(self, hamiltonian: Hamiltonian, seed: Optional[int] = 42,
+                 ) -> None:
 
          self.H = hamiltonian
          self.rng = np.random.default_rng(seed)
 
-#     # ============================================================
-#     # Core random subset generation
-#     # ============================================================
+# ========================================================================
+# Fixed-k random sampling
+# ========================================================================
 
-    def random_subset(self, k: int) -> np.ndarray:
-         """
-         Generate a random subset of node indices.
+    def sample_fixed_k(self, k: int, n_samples: int = 1000, mu: float = 1.0,
+                       gamma: Optional[float] = None,) -> Dict:
+         """Sample random subsets of nodes and compute their energies
+        to find the distribution of energy configurations and get
+        the energy thresholds.
+        
+        Parameters:
+        - k: size of subsets to sample
+        - n_samples: number of random subsets to sample
+        - mu: local contribution multiplier
+        - gamma: global contribution multiplier.
 
-         Parameters
-         ----------
-         k : int
-             Number of nodes in subset.
 
-         Returns
-         -------
-         np.ndarray
-             Random subset of node indices.
-         """
-
-         if k < 0 or k > self.H.n:
-             raise ValueError("k must satisfy 0 <= k <= number of nodes")
-
-         return self.rng.choice(
-             self.H.n,
-             size=k,
-             replace=False
-         )
-
-#     # ============================================================
-#     # Fixed-k random sampling
-#     # ============================================================
-
-    def sample_fixed_k(
-         self,
-         k: int,
-         n_samples: int = 1000,
-         mu: float = 1.0,
-         gamma: Optional[float] = None,
-     ) -> Dict:
-         """
-         Sample random subsets of fixed size k.
-
-         Parameters
-         ----------
-         k : int
-             Subset size.
-
-         n_samples : int
-             Number of random samples.
-
-         mu : float
-             Local attraction parameter.
-
-         gamma : Optional[float]
-             Global repulsion parameter.
-
-         Returns
-         -------
-         Dict
-             Dictionary containing energies,
-             Hamiltonian values, subsets,
-             and extrema information.
-         """
+        Returns:
+        --------
+        energies : np.ndarray
+            Array of energy values for the sampled subsets.
+        h_values : np.ndarray
+            Array of raw Hamiltonian values (before taking absolute value) 
+            for the sampled subsets.
+        min_energy_subset : np.ndarray
+            The subset of nodes with the minimum energy.
+        max_energy_subset : np.ndarray
+            The subset of nodes with the maximum energy.
+            """
 
          energies = np.empty(n_samples, dtype=np.float64)
          h_values = np.empty(n_samples, dtype=np.float64)
@@ -92,13 +55,9 @@ class Sampler:
 
          for i in range(n_samples):
 
-             S_idx = self.random_subset(k)
+             S_idx = self.rng.choice(self.H.n, size=k, replace=False)
 
-             h, _, _ = self.H.compute(
-                 S_idx,
-                 mu=mu,
-                 gamma=gamma
-             )
+             h, _, _ = self.H.compute(S_idx, mu=mu,gamma=gamma)
 
              energies[i] = abs(h)
              h_values[i] = h
@@ -109,7 +68,6 @@ class Sampler:
          imax = energies.argmax()
 
          return {
-             "k": k,
              "energies": energies,
              "hamiltonians": h_values,
              "samples": samples,
@@ -120,19 +78,14 @@ class Sampler:
              "min_hamiltonian": h_values[imin],
              "max_hamiltonian": h_values[imax],
          }
+    
 
-#     # ============================================================
-#     # Variable-k random sampling
-#     # ============================================================
+# =========================================================================
+# Variable-k random sampling
+# =========================================================================
 
-    def sample_variable_k(
-         self,
-         k_min: int,
-         k_max: int,
-         n_samples: int = 1000,
-         mu: float = 1.0,
-         gamma: Optional[float] = None,
-     ) -> Dict:
+    def sample_variable_k(self, k_min: int, k_max: int, n_samples: int = 1000,
+         mu: float = 1.0, gamma: Optional[float] = None) -> Dict:
          """
          Sample random subsets with variable subset size.
 
