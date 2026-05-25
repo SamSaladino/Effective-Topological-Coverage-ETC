@@ -18,7 +18,7 @@ class Coverage:
 
     def energy (self,S_idx, 
                 mu: float = 1.0, gamma: float = 1.0,
-                ) -> float:
+                module: bool = True) -> float:
         """
         Compute the energy of a subset of nodes S_idx.
         Where E = |H(S_idx)|
@@ -30,8 +30,13 @@ class Coverage:
         """
 
         value, _ , _ = self.H.compute(S_idx, mu=mu, gamma=gamma)
+        
+        if module:
+            value = abs(value)
+        else:
+            value = value
 
-        return abs(value)
+        return value
     
     # -----------------------------------------------------------#
     # Energy sampling
@@ -40,7 +45,8 @@ class Coverage:
     def sample_energy(self, n, k, 
                                n_samples=1000, 
                                mu: float = 1.0, gamma: float = 1.0,
-                               seed=42
+                               seed=42,
+                               module: bool = True
                                ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Sample random subsets of nodes and compute their energies 
@@ -56,7 +62,7 @@ class Coverage:
         max_energy_subset : np.ndarray
             The subset of nodes with the maximum energy.
         """
-
+    
         rng = np.random.default_rng(seed)
         energies = []
         samples = []
@@ -67,7 +73,7 @@ class Coverage:
             nodes_idx = rng.choice(n, size=k, replace=False)
             S_index[nodes_idx] = 1
 
-            E = self.energy(S_index, mu=mu, gamma=gamma)
+            E = self.energy(S_index, mu=mu, gamma=gamma, module=module)
             energies.append(E)
             samples.append(S_index.copy())
 
@@ -90,7 +96,8 @@ class Coverage:
     def sample_energy_variable_k(self, n, k_min, k_max, 
                                  n_samples=1000, 
                                  mu: float = 1.0, gamma: float = 1.0,
-                                 seed=42
+                                 seed=42,
+                                 module: bool = True
                                  ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Sample random subsets of nodes with variable cardinality and compute their energies 
@@ -123,7 +130,7 @@ class Coverage:
             
             S_index[nodes_idx] = 1
             
-            E = self.energy(S_index, mu=mu, gamma=gamma)
+            E = self.energy(S_index, mu=mu, gamma=gamma, module=module)
             energies.append(E)
             samples.append(S_index.copy())
         
