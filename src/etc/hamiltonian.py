@@ -9,8 +9,9 @@ class Hamiltonian:
     Usage:
         H = Hamiltonian(G)
         value, t1, t2 = H.compute(S_idx, mu=1.0, gamma=1.0)
+        For the vector S_idx, use node indices relative to the graph G.
 
-    The class preserves the prior behavior but groups related data and helpers.
+    Note:The class preserves the prior behavior but groups related data and helpers.
     """
 
     def __init__(self, G: nx.Graph, distance_matrix: np.ndarray = None) -> None:
