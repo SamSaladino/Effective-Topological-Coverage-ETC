@@ -159,7 +159,8 @@ class Hamiltonian:
 
     # -------------------- Energy and sampling ---------------------
     def energy (
-            self,S_idx: Sequence[int], mu: float = 1.0,  gamma: Optional[float] = None
+            self,S_idx: Sequence[int], mu: float = 1.0,  
+            gamma: Optional[float] = None
             ) -> float:
         """Compute the energy of a subset of nodes S_idx.
         Where E = |H(S_idx)|
@@ -172,9 +173,51 @@ class Hamiltonian:
         return abs(H)
     
     def sampling_energy(
-            self,
-    ):
-        return 0
+            self,k:int, n_samples=1000, 
+            mu: float = 1.0, gamma: Optional[float] = None,
+            seed=42,
+            module: bool = True
+    )-> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Sample random subsets of nodes and compute their energies
+        to find the distribution of energy configurations and get
+        the energy thresholds.
+        
+        Parameters:
+        - k: size of subsets to sample
+        - n_samples: number of random subsets to sample
+        - mu: local contribution multiplier
+        - gamma: global contribution multiplier. If None, computed via 
+        ``gamma_balancer``.
+        - seed: random seed for reproducibility
+        - module: if True, return absolute energy values; if False, 
+        return signed energies  
+        Returns:
+        --------
+        energies : np.ndarray
+            Array of energy values for the sampled subsets.
+        min_energy_subset : np.ndarray
+            The subset of nodes with the minimum energy.
+        max_energy_subset : np.ndarray
+            The subset of nodes with the maximum energy.
+            """
+        rng = np.random.default_rng(seed)
+        energies = []
+        samples = []
+        h_values = []
+        for _ in range(n_samples):
+            # vector of nodes index for _ sample
+            S_index = rng.choice(self.n, size=k, replace=False)
+
+            energies.append(self.energy(S_index, mu=mu, gamma=gamma))
+            h_values.append(self.compute(S_index, mu=mu, gamma=gamma)[0])
+            # store the sample subset
+            samples.append(S_index.copy())
+
+        energies = np.array(energies)
+        h_values = np.array(h_values)
+        imin, imax = energies.argmin(), energies.argmax()
+
+        return energies,h_values, samples[imin], samples[imax] 
     # ---------------- Graph properties & parameter estimation -----
     @staticmethod
     def graph_density(G: nx.Graph) -> float:
