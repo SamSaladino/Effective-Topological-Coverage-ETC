@@ -1,3 +1,4 @@
+from matplotlib.pylab import seed
 import numpy as np
 import networkx as nx
 from scipy import sparse
@@ -9,8 +10,9 @@ class Hamiltonian:
     Usage:
         H = Hamiltonian(G)
         value, t1, t2 = H.compute(S_idx, mu=1.0, gamma=1.0)
+        For the vector S_idx, use node indices relative to the graph G.
 
-    The class preserves the prior behavior but groups related data and helpers.
+    Note:The class preserves the prior behavior but groups related data and helpers.
     """
 
     def __init__(self, G: nx.Graph, distance_matrix: np.ndarray = None) -> None:
@@ -124,9 +126,18 @@ class Hamiltonian:
         Raises
         - TypeError if S_idx is not a sequence of integers.
         - IndexError if any index in S_idx is out of range [0, n).
+        - IndexError if all indices are binary (0 or 1) but not valid node indices.
         """
+        # Validate S_idx input
         if not isinstance(S_idx, (list, tuple, np.ndarray)):
             raise TypeError("S_idx must be a sequence of integers")
+        # Check if S_idx looks like a binary mask but contains no valid indices
+        if all(isinstance(
+            x, (int, np.integer)) and (x == 0 or x == 1) for x in S_idx
+            ):
+            raise IndexError(
+                "S_idx appears to be a binary mask but contains no valid node indices"
+                )
 
         S_idx_arr = np.asarray(S_idx, dtype=np.int64)
         n = self.A.shape[0]
@@ -147,6 +158,113 @@ class Hamiltonian:
         t2 = gamma * float(np.triu(sub, k=1).sum())
         return t1 + t2, t1, t2
 
+    # -------------------- Energy and sampling ---------------------
+    def energy (
+            self,S_idx: Sequence[int], mu: float = 1.0,  
+            gamma: Optional[float] = None
+            ) -> float:
+        """Compute the energy of a subset of nodes S_idx.
+        Where E = |H(S_idx)|
+        Returns:
+        --------
+        E : float
+            The energy of the subset S_idx.
+        """
+        H, _, _ = self.compute(S_idx, mu=mu, gamma=gamma)
+        return abs(H)
+    
+    def sampling_energy(
+            self,k:int, n_samples=1000, 
+            mu: float = 1.0, gamma: Optional[float] = None,
+            seed=42
+    )-> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Sample random subsets of nodes and compute their energies
+        to find the distribution of energy configurations and get
+        the energy thresholds.
+        
+        Parameters:
+        - k: size of subsets to sample
+        - n_samples: number of random subsets to sample
+        - mu: local contribution multiplier
+        - gamma: global contribution multiplier. If None, computed via 
+        ``gamma_balancer``.
+        - seed: random seed for reproducibility
+        - module: if True, return absolute energy values; if False, 
+        return signed energies  
+        Returns:
+        --------
+        energies : np.ndarray
+            Array of energy values for the sampled subsets.
+        h_values : np.ndarray
+            Array of raw Hamiltonian values (before taking absolute value) 
+            for the sampled subsets.
+        min_energy_subset : np.ndarray
+            The subset of nodes with the minimum energy.
+        max_energy_subset : np.ndarray
+            The subset of nodes with the maximum energy.
+            """
+        rng = np.random.default_rng(seed)
+        energies = []
+        samples = []
+        h_values = []
+        for _ in range(n_samples):
+            # vector of nodes index for _ sample
+            S_index = rng.choice(self.n, size=k, replace=False)
+
+            E = self.energy(S_index, mu=mu, gamma=gamma)
+            energies.append(E)
+            h = self.compute(S_index, mu=mu, gamma=gamma)[0]
+            h_values.append(h)
+            # store the sample subset
+            samples.append(S_index.copy())
+
+        energies = np.array(energies)
+        h_values = np.array(h_values)
+        imin, imax = energies.argmin(), energies.argmax()
+
+        return energies,h_values, samples[imin], samples[imax] 
+    
+    def sample_energy_variable_k(self, k_min, k_max, 
+                                 n_samples=1000, 
+                                 mu: float = 1.0, gamma: float = 1.0,
+                                 seed=42,
+                                 ) -> np.ndarray:
+        """
+        Sample random subsets of nodes with variable cardinality and compute their energies 
+        to find the distribution of energy configurations and get 
+        the energy thresholds.
+        
+        The number of nodes in each sample varies between k_min and k_max.
+        
+        Returns:
+        --------
+        energies : np.ndarray
+            Array of energy values for the sampled subsets.
+        min_energy_subset : np.ndarray
+            The subset of nodes with the minimum energy.
+        max_energy_subset : np.ndarray
+            The subset of nodes with the maximum energy.
+        """
+    
+        rng = np.random.default_rng(seed)
+        energies = []
+        samples = []
+    
+    
+        for _ in range(n_samples):
+            
+            # Sample a random k value between k_min and k_max
+            k = rng.integers(k_min, k_max + 1)
+
+            S_index = rng.choice(self.n, size=k, replace=False)
+
+            E = self.energy(S_index, mu=mu, gamma=gamma)
+            energies.append(E)
+            samples.append(S_index.copy())
+        
+        energies = np.array(energies)
+        return energies
+    
     # ---------------- Graph properties & parameter estimation -----
     @staticmethod
     def graph_density(G: nx.Graph) -> float:
