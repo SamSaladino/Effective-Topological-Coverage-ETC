@@ -1,3 +1,4 @@
+from matplotlib.pylab import seed
 import numpy as np
 import networkx as nx
 from scipy import sparse
@@ -195,6 +196,9 @@ class Hamiltonian:
         --------
         energies : np.ndarray
             Array of energy values for the sampled subsets.
+        h_values : np.ndarray
+            Array of raw Hamiltonian values (before taking absolute value) 
+            for the sampled subsets.
         min_energy_subset : np.ndarray
             The subset of nodes with the minimum energy.
         max_energy_subset : np.ndarray
@@ -218,6 +222,48 @@ class Hamiltonian:
         imin, imax = energies.argmin(), energies.argmax()
 
         return energies,h_values, samples[imin], samples[imax] 
+    
+    def sample_energy_variable_k(self, k_min, k_max, 
+                                 n_samples=1000, 
+                                 mu: float = 1.0, gamma: float = 1.0,
+                                 seed=42,
+                                 ) -> np.ndarray:
+        """
+        Sample random subsets of nodes with variable cardinality and compute their energies 
+        to find the distribution of energy configurations and get 
+        the energy thresholds.
+        
+        The number of nodes in each sample varies between k_min and k_max.
+        
+        Returns:
+        --------
+        energies : np.ndarray
+            Array of energy values for the sampled subsets.
+        min_energy_subset : np.ndarray
+            The subset of nodes with the minimum energy.
+        max_energy_subset : np.ndarray
+            The subset of nodes with the maximum energy.
+        """
+    
+        rng = np.random.default_rng(seed)
+        energies = []
+        samples = []
+    
+    
+        for _ in range(n_samples):
+            
+            # Sample a random k value between k_min and k_max
+            k = rng.integers(k_min, k_max + 1)
+
+            S_index = rng.choice(self.n, size=k, replace=False)
+            
+            E = self.energy(S_index, mu=mu, gamma=gamma)
+            energies.append(E)
+            samples.append(S_index.copy())
+        
+        energies = np.array(energies)
+        return energies
+    
     # ---------------- Graph properties & parameter estimation -----
     @staticmethod
     def graph_density(G: nx.Graph) -> float:
