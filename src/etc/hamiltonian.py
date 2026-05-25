@@ -176,8 +176,7 @@ class Hamiltonian:
     def sampling_energy(
             self,k:int, n_samples=1000, 
             mu: float = 1.0, gamma: Optional[float] = None,
-            seed=42,
-            module: bool = True
+            seed=42
     )-> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Sample random subsets of nodes and compute their energies
         to find the distribution of energy configurations and get
@@ -212,8 +211,10 @@ class Hamiltonian:
             # vector of nodes index for _ sample
             S_index = rng.choice(self.n, size=k, replace=False)
 
-            energies.append(self.energy(S_index, mu=mu, gamma=gamma))
-            h_values.append(self.compute(S_index, mu=mu, gamma=gamma)[0])
+            E = self.energy(S_index, mu=mu, gamma=gamma)
+            energies.append(E)
+            h = self.compute(S_index, mu=mu, gamma=gamma)[0]
+            h_values.append(h)
             # store the sample subset
             samples.append(S_index.copy())
 
@@ -256,7 +257,7 @@ class Hamiltonian:
             k = rng.integers(k_min, k_max + 1)
 
             S_index = rng.choice(self.n, size=k, replace=False)
-            
+
             E = self.energy(S_index, mu=mu, gamma=gamma)
             energies.append(E)
             samples.append(S_index.copy())
