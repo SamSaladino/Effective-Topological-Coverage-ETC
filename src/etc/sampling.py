@@ -13,9 +13,64 @@ class Sampler:
     on an existing Hamiltonian object.
     """
 
-    def __init__(self, hamiltonian: Hamiltonian, seed: Optional[int] = 42) -> None:
+    def __init__(self, hamiltonian: Hamiltonian, seed: int = 42) -> None:
         self.H = hamiltonian
         self.seed = seed
+
+    def _rng(self, seed: Optional[int] = None) -> np.random.Generator:
+        return np.random.default_rng(self.seed if seed is None else seed)
+
+    def _subset_to_index_set(self, subset: np.ndarray) -> set[int]:
+        return set(int(idx) for idx in np.asarray(subset, dtype=np.int64))
+
+    def _neighborhood_indices(self, node_idx: int) -> List[int]:
+        node_label = self.H.nodes[int(node_idx)]
+        return [self.H.idx[neighbor] for neighbor in self.H.G.neighbors(node_label)]
+
+    def random_subset(self, k: int, seed: Optional[int] = None) -> np.ndarray:
+        rng = self._rng(seed)
+        return rng.choice(self.H.n, size=k, replace=False)
+
+    def _propose_graph_swap(
+        self,
+        current: np.ndarray,
+        rng: np.random.Generator,
+    ) -> Optional[np.ndarray]:
+        """Swap one occupied node for a free neighbor of another occupied node.
+
+        The removed node is chosen among the occupied nodes that are not adjacent
+        to the selected anchor node. If no such move exists, return None.
+        """
+
+        current_set = self._subset_to_index_set(current)
+        occupied = np.array(sorted(current_set), dtype=np.int64)
+
+        if occupied.size == 0:
+            return None
+
+        for anchor_idx in rng.permutation(occupied):
+            neighbors = self._neighborhood_indices(int(anchor_idx))
+            free_neighbors = [idx for idx in neighbors if idx not in current_set]
+            if not free_neighbors:
+                continue
+
+            non_neighbors = [
+                idx for idx in occupied
+                if idx != anchor_idx and idx not in neighbors
+            ]
+            if not non_neighbors:
+                continue
+
+            add_idx = int(rng.choice(free_neighbors))
+            remove_idx = int(rng.choice(non_neighbors))
+
+            proposal_set = set(current_set)
+            proposal_set.remove(remove_idx)
+            proposal_set.add(add_idx)
+
+            return np.array(sorted(proposal_set), dtype=np.int64)
+
+        return None
 
     # ========================================================================
     # Fixed-k random sampling
@@ -30,24 +85,26 @@ class Sampler:
     ) -> Dict:
         """Sample random subsets of nodes and compute their energies.
 
-        The RNG is reinitialized on every call, so repeated calls with the same
-        seed return the same sample sequence, matching the older API.
+        The RNG is reinitialized on every call, so repeated calls with the 
+        same seed return the same sample sequence, matching the older API.
         """
 
-        rng = np.random.default_rng(self.seed)
+        rng = self._rng()
 
-        energies = np.empty(n_samples, dtype=np.float64)
-        h_values = np.empty(n_samples, dtype=np.float64)
+        energies: List[float] = []
+        h_values: List[float] = []
         samples: List[np.ndarray] = []
 
-        for i in range(n_samples):
+        for _ in range(n_samples):
             S_idx = rng.choice(self.H.n, size=k, replace=False)
             h, _, _ = self.H.compute(S_idx, mu=mu, gamma=gamma)
 
-            energies[i] = abs(h)
-            h_values[i] = h
+            energies.append(abs(h))
+            h_values.append(h)
             samples.append(S_idx.copy())
 
+        energies = np.asarray(energies, dtype=np.float64)
+        h_values = np.asarray(h_values, dtype=np.float64)
         imin = energies.argmin()
         imax = energies.argmax()
 
@@ -63,68 +120,9 @@ class Sampler:
             "max_hamiltonian": h_values[imax],
         }
 
-    # =========================================================================
-    # Variable-k random sampling
-    # =========================================================================
-
-    def sample_variable_k(
-        self,
-        k_min: int,
-        k_max: int,
-        n_samples: int = 1000,
-        mu: float = 1.0,
-        gamma: float = 1.0,
-    ) -> Dict:
-        """Sample random subsets with variable subset size."""
-
-        if k_min < 0:
-            raise ValueError("k_min must be >= 0")
-
-        if k_max > self.H.n:
-            raise ValueError("k_max exceeds graph size")
-
-        if k_min > k_max:
-            raise ValueError("k_min must be <= k_max")
-
-        rng = np.random.default_rng(self.seed)
-
-        energies = np.empty(n_samples, dtype=np.float64)
-        h_values = np.empty(n_samples, dtype=np.float64)
-        k_values = np.empty(n_samples, dtype=np.int64)
-        samples: List[np.ndarray] = []
-
-        for i in range(n_samples):
-            k = rng.integers(k_min, k_max + 1)
-            S_idx = rng.choice(self.H.n, size=k, replace=False)
-            h, _, _ = self.H.compute(S_idx, mu=mu, gamma=gamma)
-
-            energies[i] = abs(h)
-            h_values[i] = h
-            k_values[i] = k
-            samples.append(S_idx.copy())
-
-        imin = energies.argmin()
-        imax = energies.argmax()
-
-        return {
-            "energies": energies,
-            "hamiltonians": h_values,
-            "samples": samples,
-            "min_subset": samples[imin],
-            "max_subset": samples[imax],
-            "min_energy": energies[imin],
-            "max_energy": energies[imax],
-        }
-
-    # --------------------  OPTIMIZATION ---------------------
-
-    # ========================================================================
-    # Annealing
-    # ========================================================================
-
     def minimize_energy(
         self,
-        S0,
+        S0: np.ndarray,
         mu: float = 1.0,
         gamma: float = 1.0,
         Tmax: float = 1.0,
@@ -133,88 +131,50 @@ class Sampler:
         seed: int = 42,
         steps: int = 10000,
     ) -> Tuple[np.ndarray, float, List[float]]:
-        """
-        Minimize E using simulated anneling.
-        S0 is the initial subset of nodes closest to the minimum energy configuration.
-        S0[i] = 1 if node i is in the subset, 0 otherwise.
+        """Simulated annealing over node-index subsets using graph-guided swaps."""
 
-        Constraints:
-        sum(S0) = k is preserved during the optimization.
+        rng = self._rng(seed)
+        current = np.array(
+            sorted(set(int(idx) for idx in np.asarray(S0, dtype=np.int64))),
+            dtype=np.int64,
+        )
+        current_energy = self.H.energy(current, mu=mu, gamma=gamma)
 
-        Returns:
-        --------
-        S_min : np.ndarray
-            The subset of nodes with the minimum energy.
-        E_min : float
-            The minimum energy value.
-        """
-        rng = np.random.default_rng(seed)
+        best_subset = current.copy()
+        best_energy = current_energy
+        temperature = Tmax
+        history: List[float] = []
 
-        # initial configuration
-        S_current = S0.copy()
+        for _ in range(steps):
+            proposal = self._propose_graph_swap(current, rng)
+            if proposal is None:
+                history.append(current_energy)
+                temperature *= cooloing
+                if temperature < Tmin:
+                    break
+                continue
 
-        # compute initial energy
-        E_current = self.energy(S_current, mu=mu, gamma=gamma)
-        k = S_current.sum()
+            proposal_energy = self.H.energy(proposal, mu=mu, gamma=gamma)
+            delta_energy = proposal_energy - current_energy
 
-        best_S = S_current.copy()
-        best_E = E_current
-
-        # Temperature
-        T = Tmax
-        history = []
-
-        # Anneling loop
-        for step in range(steps):
-
-            proposal_S = S_current.copy()
-            #Find occupied and unoccupied indices
-            occupied_indices = np.where(proposal_S == 1)[0]
-            unoccupied_indices = np.where(proposal_S == 0)[0]
-
-            # Swap move: randomly select one occupied and one unoccupied
-            # to swap their states
-
-            remove_node = rng.choice(occupied_indices)
-            add_node = rng.choice(unoccupied_indices)
-
-            proposal_S[remove_node] = 0
-            proposal_S[add_node] = 1
-
-            # Compute new energy
-            proposal_E = self.energy(
-                proposal_S,
-                mu=mu,
-                gamma=gamma,
-            )
-            delta_E = proposal_E - E_current
-
-            # Metropolis criterion
-            if delta_E < 0:
+            if delta_energy <= 0:
                 accept = True
             else:
-                prob = np.exp(-delta_E / T)
-                accept = rng.random() < prob
+                accept = rng.random() < np.exp(-delta_energy / temperature)
 
-            # Accept move
             if accept:
-                S_current = proposal_S
-                E_current = proposal_E
+                current = proposal
+                current_energy = proposal_energy
+                if current_energy < best_energy:
+                    best_subset = current.copy()
+                    best_energy = current_energy
 
-                # Update best solution
-                if E_current < best_E:
-                    best_S = S_current.copy()
-                    best_E = E_current
-
-            # Store history
-            history.append((E_current))
-
-            # Cool down
-            T *= cooloing
-            if T < Tmin:
+            history.append(current_energy)
+            temperature *= cooloing
+            if temperature < Tmin:
                 break
 
-            return best_S, best_E, history
+        return best_subset, best_energy, history
 
     # ========================================================================
     # Exhaustive search (small graphs only)
@@ -278,67 +238,45 @@ class Sampler:
 
     def greedy_minimize(
         self,
-        k: int,
+        S0: np.ndarray,
         mu: float = 1.0,
         gamma: Optional[float] = None,
         n_starts: int = 10,
     ) -> Dict:
         """
-        Greedy local minimization of energy.
+        Greedy local minimization of energy using graph-guided swaps.
 
-        Starts from random subsets and iteratively
-        improves the configuration.
+        Starts from the provided node-index subset and repeatedly accepts only
+        improving moves that preserve subset size.
         """
 
         best_subset = None
         best_energy = np.inf
+        rng = self._rng()
 
         for _ in range(n_starts):
 
-            current = self.random_subset(k)
+            current = np.array(
+                sorted(set(int(idx) for idx in np.asarray(S0, dtype=np.int64))),
+                dtype=np.int64,
+            )
+            current_energy = self.H.energy(current, mu=mu, gamma=gamma)
 
             improved = True
-
             while improved:
-
                 improved = False
+                proposal = self._propose_graph_swap(current, rng)
+                if proposal is None:
+                    break
 
-                current_h, _, _ = self.H.compute(
-                    current,
-                    mu=mu,
-                    gamma=gamma,
-                )
+                proposal_energy = self.H.energy(proposal, mu=mu, gamma=gamma)
+                if proposal_energy < current_energy:
+                    current = proposal
+                    current_energy = proposal_energy
+                    improved = True
 
-                current_E = abs(current_h)
-
-                for remove_idx in range(k):
-
-                    for add_node in range(self.H.n):
-
-                        if add_node in current:
-                            continue
-
-                        proposal = current.copy()
-                        proposal[remove_idx] = add_node
-
-                        proposal_h, _, _ = self.H.compute(
-                            proposal,
-                            mu=mu,
-                            gamma=gamma,
-                        )
-
-                        proposal_E = abs(proposal_h)
-
-                        if proposal_E < current_E:
-
-                            current = proposal
-                            current_E = proposal_E
-
-                            improved = True
-
-                if current_E < best_energy:
-
-                    best_energy = current_E
-                    best_subset = current.copy()
+            if current_energy < best_energy:
+                best_energy = current_energy
+                best_subset = current.copy()
 
         return {"best_subset": best_subset, "best_energy": best_energy}
