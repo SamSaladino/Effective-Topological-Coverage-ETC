@@ -241,4 +241,4 @@ class Coverage:
             if T < Tmin:
                 break
 
-            return best_S, best_E, history
+        return best_S, best_E, history
