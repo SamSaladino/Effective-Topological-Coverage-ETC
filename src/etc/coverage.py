@@ -29,7 +29,14 @@ class Coverage:
             The energy of the subset S_idx.
         """
 
-        value, _ , _ = self.H.compute(S_idx, mu=mu, gamma=gamma)
+        S_arr = np.asarray(S_idx)
+        # Backward compatibility: allow binary masks and convert to index arrays.
+        if S_arr.ndim == 1 and S_arr.size == self.H.n and np.isin(S_arr, [0, 1]).all():
+            S_eval = np.where(S_arr == 1)[0]
+        else:
+            S_eval = S_idx
+
+        value, _ , _ = self.H.compute(S_eval, mu=mu, gamma=gamma)
         
         if module:
             value = abs(value)
@@ -37,7 +44,7 @@ class Coverage:
             value = value
 
         return value
-    
+#=========================================================================================    
     # -----------------------------------------------------------#
     # Energy sampling
     # -----------------------------------------------------------#
@@ -138,13 +145,13 @@ class Coverage:
         imin, imax = energies.argmin(), energies.argmax()
         return energies, samples[imin], samples[imax]
     
-    
+#=========================================================================================    
     
     # -----------------------------------------------------------#
     # Energy minimization
     # -----------------------------------------------------------#
 
-    def minimize_energy(self, S0, n,
+    def min_energy_anneling(self, S0, n,
                         mu: float = 1.0, 
                         gamma: float = 1.0,
                         Tmax: float =1.0,
