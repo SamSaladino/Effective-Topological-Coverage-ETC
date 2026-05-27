@@ -126,20 +126,12 @@ class Hamiltonian:
         Raises
         - TypeError if S_idx is not a sequence of integers.
         - IndexError if any index in S_idx is out of range [0, n).
-        - IndexError if all indices are binary (0 or 1) but not valid node indices.
         """
         # Validate S_idx input
         if not isinstance(S_idx, (list, tuple, np.ndarray)):
             raise TypeError("S_idx must be a sequence of integers")
-        # Check if S_idx looks like a binary mask but contains no valid indices
-        if all(isinstance(
-            x, (int, np.integer)) and (x == 0 or x == 1) for x in S_idx
-            ):
-            raise IndexError(
-                "S_idx appears to be a binary mask but contains no valid node indices"
-                )
-
-        S_idx_arr = np.asarray(S_idx.copy(), dtype=np.int64)
+        # Normalize subset order so the same node set always produces the same energy.
+        S_idx_arr = np.sort(np.asarray(S_idx, dtype=np.int64))
         n = self.A.shape[0]
 
         if S_idx_arr.size > 0:

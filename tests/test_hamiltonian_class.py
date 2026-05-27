@@ -69,3 +69,15 @@ def test_invalid_S_idx_raises():
     # index out of range should raise an IndexError when setting s[S_idx] = 1.0
     with pytest.raises(IndexError):
         Hobj.compute([0, 5], mu=1.0, gamma=None)
+
+
+def test_compute_is_order_invariant():
+    G = nx.path_graph(5)
+    Hobj = Hamiltonian(G)
+
+    val_sorted, t1_sorted, t2_sorted = Hobj.compute([0, 2, 4], mu=1.0, gamma=None)
+    val_unsorted, t1_unsorted, t2_unsorted = Hobj.compute([4, 0, 2], mu=1.0, gamma=None)
+
+    assert pytest.approx(val_sorted) == val_unsorted
+    assert pytest.approx(t1_sorted) == t1_unsorted
+    assert pytest.approx(t2_sorted) == t2_unsorted
