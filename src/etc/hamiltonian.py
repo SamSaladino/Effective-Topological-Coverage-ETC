@@ -139,7 +139,7 @@ class Hamiltonian:
                 "S_idx appears to be a binary mask but contains no valid node indices"
                 )
 
-        S_idx_arr = np.asarray(S_idx, dtype=np.int64)
+        S_idx_arr = np.asarray(S_idx.copy(), dtype=np.int64)
         n = self.A.shape[0]
 
         if S_idx_arr.size > 0:
@@ -176,7 +176,7 @@ class Hamiltonian:
     def sampling_energy(
             self,k:int, n_samples=1000,
             mu: float = 1.0, gamma: float = 1.0,
-            seed=42, module: bool = True,
+            seed=42,
             return_raw_h: bool = False
     )-> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
 
@@ -216,15 +216,13 @@ class Hamiltonian:
         rng = np.random.default_rng(seed)
         energies = []
         samples = []
-        h_values = []
         for _ in range(n_samples):
             # vector of nodes index for _ sample
             S_index = rng.choice(self.n, size=k, replace=False)
 
             h = self.compute(S_index, mu=mu, gamma=gamma)[0]
-            E = abs(h) if module else h
+            E = abs(h) 
             energies.append(E)
-            h_values.append(h if return_raw_h else E)
             # store the sample subset
             samples.append(S_index.copy())
 
