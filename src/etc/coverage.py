@@ -151,7 +151,7 @@ class Coverage:
     # Energy minimization
     # -----------------------------------------------------------#
 
-    def min_energy_anneling(self, S0, n,
+    def min_energy_anneling(self, S0,
                         mu: float = 1.0, 
                         gamma: float = 1.0,
                         Tmax: float =1.0,
@@ -182,7 +182,6 @@ class Coverage:
 
         # compute initial energy
         E_current = self.energy(S_current, mu=mu, gamma=gamma)
-        k = S_current.sum()
 
         best_S = S_current.copy()
         best_E = E_current
@@ -192,7 +191,7 @@ class Coverage:
         history = []
 
         # Anneling loop
-        for step in range(steps):
+        for _ in range(steps):
             
             proposal_S = S_current.copy()
             #Find occupied and unoccupied indices
