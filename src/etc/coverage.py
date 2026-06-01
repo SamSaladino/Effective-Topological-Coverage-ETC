@@ -241,3 +241,95 @@ class Coverage:
                 break
 
         return best_S, best_E, history
+    
+    def max_energy_anneling(self, S0,
+                        mu: float = 1.0, 
+                        gamma: float = 1.0,
+                        Tmax: float =1.0,
+                        Tmin: float =1e-6,
+                        cooloing : float = 0.995,
+                        seed: int = 42,
+                        steps: int = 10000
+                        ):
+        """
+        Maximize E using simulated anneling.
+        S0 is the initial subset of nodes closest to the maximum energy configuration.
+        S0[i] = 1 if node i is in the subset, 0 otherwise.
+        
+        Constraints:
+        sum(S0) = k is preserved during the optimization.
+        
+        Returns:
+        --------
+        S_max : np.ndarray
+            The subset of nodes with the maximum energy.
+        E_max : float
+            The maximum energy value.
+        """
+        rng = np.random.default_rng(seed)
+        
+        # initial configuration
+        S_current = S0.copy()
+
+        # compute initial energy
+        E_current = self.energy(S_current, mu=mu, gamma=gamma)
+
+        best_S = S_current.copy()
+        best_E = E_current
+
+        # Temperature
+        T = Tmax
+        history = []
+
+        # Anneling loop
+        for _ in range(steps):
+            
+            proposal_S = S_current.copy()
+            #Find occupied and unoccupied indices
+            occupied_indices = np.where(proposal_S == 1)[0]
+            unoccupied_indices = np.where(proposal_S == 0)[0]
+
+            # Swap move: randomly select one occupied and one unoccupied
+            # to swap their states
+
+            remove_node = rng.choice(occupied_indices)
+            add_node = rng.choice(unoccupied_indices)
+
+            proposal_S[remove_node] = 0
+            proposal_S[add_node] = 1
+
+            # Compute new energy
+            proposal_E = self.energy(
+                proposal_S,
+                mu=mu, 
+                gamma=gamma
+                )
+            delta_E = E_current - proposal_E
+
+            # Metropolis criterion
+            if delta_E < 0:
+                accept = True
+            else:
+                prob = np.exp(-delta_E / T)
+                # 
+                accept = rng.random() < prob
+            
+            # Accept move
+            if accept:
+                S_current = proposal_S
+                E_current = proposal_E
+
+                # Update best solution
+                if E_current < best_E:
+                    best_S = S_current.copy()
+                    best_E = E_current
+        
+            # Store history
+            history.append((E_current))
+
+            # Cool down
+            T *= cooloing
+            if T < Tmin:
+                break
+
+        return best_S, best_E, history
