@@ -239,6 +239,8 @@ class Coverage:
             T *= cooloing
             if T < Tmin:
                 break
+            elif proposal_E == 0.0000:
+                break
 
         return best_S, best_E, history
     
