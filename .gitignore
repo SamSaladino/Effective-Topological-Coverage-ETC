@@ -195,3 +195,5 @@ cython_debug/
 data/
 examples/data
 examples/figures
+examples/G1_pd.npy
+results
