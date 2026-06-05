@@ -1,0 +1,33 @@
+{
+  "files.watcherExclude": {
+    "**/.git/objects/**": true,
+    "**/.git/subtree-cache/**": true,
+    "**/.mypy_cache/**": true,
+    "**/.pytest_cache/**": true,
+    "**/__pycache__/**": true,
+    "**/build/**": true,
+    "**/data/**": true,
+    "**/examples/data/**": true,
+    "**/examples/figures/**": true,
+    "**/venv/**": true
+  },
+  "search.exclude": {
+    "**/.mypy_cache/**": true,
+    "**/.pytest_cache/**": true,
+    "**/__pycache__/**": true,
+    "**/build/**": true,
+    "**/data/**": true,
+    "**/examples/data/**": true,
+    "**/examples/figures/**": true,
+    "**/venv/**": true
+  },
+  "python.analysis.exclude": [
+    ".mypy_cache",
+    ".pytest_cache",
+    "build",
+    "data",
+    "examples/data",
+    "examples/figures",
+    "venv"
+  ]
+}
