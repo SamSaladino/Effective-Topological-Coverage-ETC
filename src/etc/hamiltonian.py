@@ -126,20 +126,12 @@ class Hamiltonian:
         Raises
         - TypeError if S_idx is not a sequence of integers.
         - IndexError if any index in S_idx is out of range [0, n).
-        - IndexError if all indices are binary (0 or 1) but not valid node indices.
         """
         # Validate S_idx input
         if not isinstance(S_idx, (list, tuple, np.ndarray)):
             raise TypeError("S_idx must be a sequence of integers")
-        # Check if S_idx looks like a binary mask but contains no valid indices
-        if all(isinstance(
-            x, (int, np.integer)) and (x == 0 or x == 1) for x in S_idx
-            ):
-            raise IndexError(
-                "S_idx appears to be a binary mask but contains no valid node indices"
-                )
-
-        S_idx_arr = np.asarray(S_idx, dtype=np.int64)
+        # Normalize subset order so the same node set always produces the same energy.
+        S_idx_arr = np.sort(np.asarray(S_idx, dtype=np.int64))
         n = self.A.shape[0]
 
         if S_idx_arr.size > 0:
@@ -157,7 +149,7 @@ class Hamiltonian:
         sub = self.Dinv2_triu[np.ix_(S_idx_arr, S_idx_arr)]
         t2 = gamma * float(np.triu(sub, k=1).sum())
         return t1 + t2, t1, t2
-
+#========================================================================================
     # -------------------- Energy and sampling ---------------------
     def energy (
             self,S_idx: Sequence[int], mu: float = 1.0,  
@@ -172,12 +164,14 @@ class Hamiltonian:
         """
         H, _, _ = self.compute(S_idx, mu=mu, gamma=gamma)
         return abs(H)
-    
+
     def sampling_energy(
-            self,k:int, n_samples=1000, 
-            mu: float = 1.0, gamma: Optional[float] = None,
-            seed=42
-    )-> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+            self,k:int, n_samples=1000,
+            mu: float = 1.0, gamma: float = 1.0,
+            seed=42,
+            return_raw_h: bool = False
+    )-> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+
         """Sample random subsets of nodes and compute their energies
         to find the distribution of energy configurations and get
         the energy thresholds.
@@ -189,32 +183,38 @@ class Hamiltonian:
         - gamma: global contribution multiplier. If None, computed via 
         ``gamma_balancer``.
         - seed: random seed for reproducibility
-        - module: if True, return absolute energy values; if False, 
-        return signed energies  
+        - module: if True, return absolute energy values; if False,
+        return signed energies
+        - return_raw_h: if True, second return value contains signed
+        Hamiltonian values. If False (default), second return value uses
+        the same convention as `module`.
         Returns:
         --------
         energies : np.ndarray
             Array of energy values for the sampled subsets.
         h_values : np.ndarray
-            Array of raw Hamiltonian values (before taking absolute value) 
-            for the sampled subsets.
+            Array of sampled Hamiltonian values. By default this matches
+            `energies`; set `return_raw_h=True` for signed values.
         min_energy_subset : np.ndarray
             The subset of nodes with the minimum energy.
         max_energy_subset : np.ndarray
             The subset of nodes with the maximum energy.
             """
+        if k < 0 or k > self.n:
+            raise ValueError("k must satisfy 0 <= k <= number of graph nodes")
+        if n_samples <= 0:
+            raise ValueError("n_samples must be a positive integer")
+
         rng = np.random.default_rng(seed)
         energies = []
         samples = []
-        h_values = []
         for _ in range(n_samples):
             # vector of nodes index for _ sample
             S_index = rng.choice(self.n, size=k, replace=False)
 
-            E = self.energy(S_index, mu=mu, gamma=gamma)
-            energies.append(E)
             h = self.compute(S_index, mu=mu, gamma=gamma)[0]
-            h_values.append(h)
+            E = abs(h) 
+            energies.append(E)
             # store the sample subset
             samples.append(S_index.copy())
 
@@ -264,7 +264,7 @@ class Hamiltonian:
         
         energies = np.array(energies)
         return energies
-    
+ #==========================================================================================   
     # ---------------- Graph properties & parameter estimation -----
     @staticmethod
     def graph_density(G: nx.Graph) -> float:
