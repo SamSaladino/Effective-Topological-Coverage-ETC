@@ -158,6 +158,160 @@ def sampling_energy(
 
     return energies, samples[energies.argmin()], samples[energies.argmax()]
 
+def min_energy_anneling(H: Hamiltonian,
+                        S0,
+                        mu: float = 1.0, 
+                        gamma: float = 1.0,
+                        Tmax: float = 1.0,
+                        Tmin: float = 1e-6,
+                        cooloing: float = 0.995,
+                        seed: int = 42,
+                        steps: int = 10000,
+                        n_workers: int = 8
+                        ):
+        """
+        Minimize E using simulated annealing with parallel execution.
+        S0 is the initial subset of nodes closest to the minimum energy configuration.
+        S0[i] = 1 if node i is in the subset, 0 otherwise.
+        
+        Constraints:
+        sum(S0) = k is preserved during the optimization.
+        
+        Parameters:
+        -----------
+        H : Hamiltonian
+            The Hamiltonian object.
+        S0 : np.ndarray
+            Initial configuration.
+        mu : float
+            Parameter for the Hamiltonian.
+        gamma : float
+            Parameter for the Hamiltonian.
+        Tmax : float
+            Maximum temperature for annealing.
+        Tmin : float
+            Minimum temperature for annealing.
+        cooloing : float
+            Cooling rate (temperature multiplier per iteration).
+        seed : int
+            Random seed for reproducibility.
+        steps : int
+            Number of annealing steps per run.
+        n_workers : int
+            Number of parallel workers for annealing runs.
+        
+        Returns:
+        --------
+        S_min : np.ndarray
+            The subset of nodes with the minimum energy.
+        E_min : float
+            The minimum energy value.
+        history : list
+            Energy history from the best run.
+        """
+        n_workers = max(1, min(n_workers, steps))
+
+        seed_seq = np.random.SeedSequence(seed)
+        child_seeds = seed_seq.spawn(n_workers)
+
+        chunk_sizes = [
+            steps // n_workers + (1 if i < steps % n_workers else 0)
+            for i in range(n_workers)
+        ]
+
+        def worker(chunk_size, child_seed):
+            rng = np.random.default_rng(child_seed)
+            
+            # initial configuration
+            S_current = S0.copy()
+
+            # compute initial energy
+            E_current = abs(H.compute(S_current, mu=mu, gamma=gamma)[0])
+
+            best_S = S_current.copy()
+            best_E = E_current
+
+            # Temperature
+            T = Tmax
+            history = []
+
+            # Annealing loop
+            for _ in range(chunk_size):
+                
+                proposal_S = S_current.copy()
+                # Find occupied and unoccupied indices
+                occupied_indices = np.where(proposal_S == 1)[0]
+                unoccupied_indices = np.where(proposal_S == 0)[0]
+
+                # Swap move: randomly select one occupied and one unoccupied
+                # to swap their states
+                remove_node = rng.choice(occupied_indices)
+                add_node = rng.choice(unoccupied_indices)
+
+                proposal_S[remove_node] = 0
+                proposal_S[add_node] = 1
+
+                # Compute new energy
+                proposal_E = abs(H.compute(
+                    proposal_S,
+                    mu=mu, 
+                    gamma=gamma
+                    )[0])
+                delta_E = proposal_E - E_current
+
+                # Metropolis criterion
+                if delta_E < 0:
+                    accept = True
+                else:
+                    prob = np.exp(-delta_E / T)
+                    accept = rng.random() < prob
+                
+                # Accept move
+                if accept:
+                    S_current = proposal_S
+                    E_current = proposal_E
+
+                    # Update best solution
+                    if E_current < best_E:
+                        best_S = S_current.copy()
+                        best_E = E_current
+            
+                # Store history
+                history.append(E_current)
+
+                # Cool down
+                T *= cooloing
+                if T < Tmin:
+                    break
+                elif proposal_E == 0.0000:
+                    break
+
+            return best_S, best_E, history
+
+        tasks = [
+            (chunk_sizes[i], child_seeds[i])
+            for i in range(n_workers)
+            if chunk_sizes[i] > 0
+        ]
+
+        if len(tasks) == 1:
+            results = [worker(*tasks[0])]
+        else:
+            with concurrent.futures.ThreadPoolExecutor(
+                max_workers=len(tasks)) as executor:
+
+                futures = [
+                    executor.submit(
+                        worker, chunk_size, child_seed
+                        ) for chunk_size, child_seed in tasks
+                    ]
+                results = [future.result() for future in futures]
+
+        # Return the best result from all parallel runs
+        best_result = min(results, key=lambda x: x[1])
+        
+        return best_result[0], best_result[1], best_result[2]
+
 if __name__ == "__main__":
     
     graph = nx.erdos_renyi_graph(n=3000, p=0.1, seed=42)
