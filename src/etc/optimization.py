@@ -123,16 +123,19 @@ class EnergyOptimizer:
         
         selected_nodes = []
         # Start with a random node
-        first_node = rng.choice(list(graph.nodes))
+        first_node = rng.choice(len(graph.nodes))
         selected_nodes.append(first_node)
+        
         while len(selected_nodes) < k:
-            # Calculate the maximum distance from the selected nodes to all other nodes
-            max_distances = np.max([distance_matrix[selected_nodes, :]], axis=0).filled(-1)
+            # Convert to array for proper indexing
+            selected_array = np.array(selected_nodes)
+            # Get maximum distance for each node from the selected nodes
+            max_distances = np.max(distance_matrix[selected_array, :], axis=0)
             # Exclude already selected nodes
             max_distances[selected_nodes] = -1
             # Select the node with the maximum distance
             next_node = np.argmax(max_distances)
-            selected_nodes.append(next_node)
+            selected_nodes.append(int(next_node))
             
         return np.array(selected_nodes)
 
@@ -477,5 +480,9 @@ if __name__ == "__main__":
         n, k, gamma, mu, n_samples, seed, n_workers
     )
 
+    farthest_sample = optimizer.farthest_nodes_sample(graph, k, seed)
+    close_sample = optimizer.close_nodes_sample(graph, k, seed)
     print(f"Minimum hamiltonian sample: {min_hamiltonian_sample}, Hamiltonian: {hamiltonian.min()}")
     print(f"Maximum hamiltonian sample: {max_hamiltonian_sample}, Hamiltonian: {hamiltonian.max()}")
+    print(f"Farthest nodes sample: {farthest_sample}")
+    print(f"Close nodes sample: {close_sample}")
