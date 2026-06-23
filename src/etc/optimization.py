@@ -1,8 +1,6 @@
 import numpy as np
 import concurrent.futures
 import os
-from itertools import combinations
-from typing import Sequence, Tuple, Optional
 from etc.hamiltonian import Hamiltonian
 import networkx as nx
 
@@ -10,7 +8,7 @@ import networkx as nx
 class EnergyOptimizer:
     """
     A class for energy optimization and sampling operations on Graphs
-    and Energy evaluation.
+    and Hamiltonian energy evaluation.
     """
     
     def __init__(self, hamiltonian: Hamiltonian):
@@ -222,24 +220,10 @@ class EnergyOptimizer:
         return energies, samples[energies.argmin()], samples[energies.argmax()]
 
     
-    def min_energy_anneling(self,
-                            S0_config,
-                            mu: float = 1.0, 
-                            gamma: float = 1.0,
-                            Tmax: float = 1.0,
-                            Tmin: float = 1e-6,
-                            cooloing: float = 0.995,
-                            seed: int = 42,
-                            steps: int = 10000,
-                            n_workers: int = 8
-                            ):
+    def _annealing_worker(self, S0_config, mu: float, gamma: float, Tmax: float, Tmin: float, 
+                         cooloing: float, chunk_size: int, seed: int, optimize: str = "minimize"):
         """
-        Minimize E using simulated annealing with parallel execution.
-        S0_config is the initial subset of nodes closest to the minimum energy configuration.
-        S0_config[i] = 1 if node i is in the subset, 0 otherwise.
-        
-        Constraints:
-        sum(S0_config) = k is preserved during the optimization.
+        Shared annealing worker function for both minimization and maximization.
         
         Parameters:
         -----------
@@ -254,126 +238,226 @@ class EnergyOptimizer:
         Tmin : float
             Minimum temperature for annealing.
         cooloing : float
-            Cooling rate (temperature multiplier per iteration).
+            Cooling rate.
+        chunk_size : int
+            Number of iterations for this worker.
         seed : int
             Random seed for reproducibility.
-        steps : int
-            Number of annealing steps per run.
-        n_workers : int
-            Number of parallel workers for annealing runs.
+        optimize : str
+            Either "minimize" or "maximize".
         
         Returns:
         --------
-        S_min : np.ndarray
-            The subset of nodes with the minimum energy.
-        E_min : float
-            The minimum energy value.
+        best_S : np.ndarray
+            Best configuration found.
+        best_E : float
+            Best energy value.
         history : list
-            Energy history from the best run.
+            Energy history.
         """
-        n_workers = max(1, min(n_workers, steps))
-
-        seed_seq = np.random.SeedSequence(seed)
-        child_seeds = seed_seq.spawn(n_workers)
-
-        chunk_sizes = [
-            steps // n_workers + (1 if i < steps % n_workers else 0)
-            for i in range(n_workers)
-        ]
-
-        def worker(chunk_size, child_seed):
-            rng = np.random.default_rng(child_seed)
+        rng = np.random.default_rng(seed)
+        
+        # Initial configuration
+        S_current = S0_config.copy()
+        E_current = abs(self.H.compute(S_current, mu=mu, gamma=gamma)[0])
+        
+        best_S = S_current.copy()
+        best_E = E_current
+        
+        T = Tmax
+        history = []
+        
+        # Annealing loop
+        for _ in range(chunk_size):
+            proposal_S = S_current.copy()
+            occupied_indices = np.where(proposal_S == 1)[0]
+            unoccupied_indices = np.where(proposal_S == 0)[0]
             
-            # initial configuration
-            S_current = S0_config.copy()
-
-            # compute initial energy
-            E_current = abs(self.H.compute(S_current, mu=mu, gamma=gamma)[0])
-
-            best_S = S_current.copy()
-            best_E = E_current
-
-            # Temperature
-            T = Tmax
-            history = []
-
-            # Annealing loop
-            for _ in range(chunk_size):
-                
-                proposal_S = S_current.copy()
-                # Find occupied and unoccupied indices
-                occupied_indices = np.where(proposal_S == 1)[0]
-                unoccupied_indices = np.where(proposal_S == 0)[0]
-
-                # Swap move: randomly select one occupied and one unoccupied
-                # to swap their states
-                remove_node = rng.choice(occupied_indices)
-                add_node = rng.choice(unoccupied_indices)
-
-                proposal_S[remove_node] = 0
-                proposal_S[add_node] = 1
-
-                # Compute new energy
-                proposal_E = abs(self.H.compute(
-                    proposal_S,
-                    mu=mu, 
-                    gamma=gamma
-                    )[0])
-                delta_E = proposal_E - E_current
-
-                # Metropolis criterion
+            # Swap move
+            remove_node = rng.choice(occupied_indices)
+            add_node = rng.choice(unoccupied_indices)
+            
+            proposal_S[remove_node] = 0
+            proposal_S[add_node] = 1
+            
+            # Compute new energy
+            proposal_E = abs(self.H.compute(proposal_S, mu=mu, gamma=gamma)[0])
+            delta_E = proposal_E - E_current
+            
+            # Metropolis criterion
+            if optimize == "minimize":
                 if delta_E < 0:
                     accept = True
                 else:
                     prob = np.exp(-delta_E / T)
                     accept = rng.random() < prob
-                
-                # Accept move
+                    
+                # Update best solution
                 if accept:
                     S_current = proposal_S
                     E_current = proposal_E
-
-                    # Update best solution
                     if E_current < best_E:
                         best_S = S_current.copy()
                         best_E = E_current
+            else:  # maximize
+                if delta_E > 0:
+                    accept = True
+                else:
+                    prob = np.exp(delta_E / T)
+                    accept = rng.random() < prob
+                    
+                # Update best solution
+                if accept:
+                    S_current = proposal_S
+                    E_current = proposal_E
+                    if E_current > best_E:
+                        best_S = S_current.copy()
+                        best_E = E_current
             
-                # Store history
-                history.append(E_current)
-
-                # Cool down
-                T *= cooloing
-                if T < Tmin:
-                    break
-                elif proposal_E == 0.0000:
-                    break
-
-            return best_S, best_E, history
-
+            history.append(E_current)
+            
+            # Cool down
+            T *= cooloing
+            if T < Tmin:
+                break
+            elif proposal_E == 0.0:
+                break
+        
+        return best_S, best_E, history
+    
+    def _run_parallel_annealing(self, S0_config, mu: float, gamma: float, Tmax: float, 
+                               Tmin: float, cooloing: float, seed: int, steps: int, 
+                               n_workers: int, optimize: str = "minimize"):
+        """
+        Execute parallel annealing runs.
+        
+        Parameters:
+        -----------
+        optimize : str
+            Either "minimize" or "maximize".
+        
+        Returns:
+        --------
+        S_result : np.ndarray
+            Best configuration.
+        E_result : float
+            Best energy value.
+        history : list
+            Energy history from best run.
+        """
+        n_workers = max(1, min(n_workers, steps))
+        
+        seed_seq = np.random.SeedSequence(seed)
+        child_seeds = seed_seq.spawn(n_workers)
+        
+        chunk_sizes = [
+            steps // n_workers + (1 if i < steps % n_workers else 0)
+            for i in range(n_workers)
+        ]
+        
         tasks = [
             (chunk_sizes[i], child_seeds[i])
             for i in range(n_workers)
             if chunk_sizes[i] > 0
         ]
-
+        
+        def worker(chunk_size, child_seed):
+            return self._annealing_worker(S0_config, mu, gamma, Tmax, Tmin, 
+                                         cooloing, chunk_size, int(child_seed), optimize)
+        
         if len(tasks) == 1:
             results = [worker(*tasks[0])]
         else:
-            with concurrent.futures.ThreadPoolExecutor(
-                max_workers=len(tasks)) as executor:
-
-                futures = [
-                    executor.submit(
-                        worker, chunk_size, child_seed
-                        ) for chunk_size, child_seed in tasks
-                    ]
+            with concurrent.futures.ThreadPoolExecutor(max_workers=len(tasks)) as executor:
+                futures = [executor.submit(worker, chunk_size, child_seed) 
+                          for chunk_size, child_seed in tasks]
                 results = [future.result() for future in futures]
-
-        # Return the best result from all parallel runs
-        best_result = min(results, key=lambda x: x[1])
+        
+        # Select best result
+        if optimize == "minimize":
+            best_result = min(results, key=lambda x: x[1])
+        else:  # maximize
+            best_result = max(results, key=lambda x: x[1])
         
         return best_result[0], best_result[1], best_result[2]
-
+    
+    def min_energy_annealing(self, S0_config, mu: float = 1.0, gamma: float = 1.0,
+                            Tmax: float = 1.0, Tmin: float = 1e-6, cooloing: float = 0.995,
+                            seed: int = 42, steps: int = 10000, n_workers: int = 8):
+        """
+        Minimize energy using simulated annealing with parallel execution.
+        
+        Parameters:
+        -----------
+        S0_config : np.ndarray
+            Initial configuration (binary mask).
+        mu : float
+            Hamiltonian parameter.
+        gamma : float
+            Hamiltonian parameter.
+        Tmax : float
+            Maximum temperature.
+        Tmin : float
+            Minimum temperature.
+        cooloing : float
+            Cooling rate.
+        seed : int
+            Random seed.
+        steps : int
+            Number of annealing steps.
+        n_workers : int
+            Number of parallel workers.
+        
+        Returns:
+        --------
+        S_min : np.ndarray
+            Configuration with minimum energy.
+        E_min : float
+            Minimum energy value.
+        history : list
+            Energy history.
+        """
+        return self._run_parallel_annealing(S0_config, mu, gamma, Tmax, Tmin, 
+                                           cooloing, seed, steps, n_workers, optimize="minimize")
+    
+    def max_energy_annealing(self, S0_config, mu: float = 1.0, gamma: float = 1.0,
+                            Tmax: float = 1.0, Tmin: float = 1e-6, cooloing: float = 0.995,
+                            seed: int = 42, steps: int = 10000, n_workers: int = 8):
+        """
+        Maximize energy using simulated annealing with parallel execution.
+        
+        Parameters:
+        -----------
+        S0_config : np.ndarray
+            Initial configuration (binary mask).
+        mu : float
+            Hamiltonian parameter.
+        gamma : float
+            Hamiltonian parameter.
+        Tmax : float
+            Maximum temperature.
+        Tmin : float
+            Minimum temperature.
+        cooloing : float
+            Cooling rate.
+        seed : int
+            Random seed.
+        steps : int
+            Number of annealing steps.
+        n_workers : int
+            Number of parallel workers.
+        
+        Returns:
+        --------
+        S_max : np.ndarray
+            Configuration with maximum energy.
+        E_max : float
+            Maximum energy value.
+        history : list
+            Energy history.
+        """
+        return self._run_parallel_annealing(S0_config, mu, gamma, Tmax, Tmin, 
+                                           cooloing, seed, steps, n_workers, optimize="maximize")
 if __name__ == "__main__":
     
     graph = nx.erdos_renyi_graph(n=3000, p=0.1, seed=42)
