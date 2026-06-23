@@ -23,7 +23,6 @@ class EnergyOptimizer:
             The Hamiltonian object for the system.
         """
         self.H = hamiltonian
-        self.graph = graph
     
     @staticmethod
     def create_S0_mask(idx, nodes):
@@ -47,7 +46,7 @@ class EnergyOptimizer:
         return mask
 
     @staticmethod
-    def close_nodes_sample(G: nx.Graph, k: int, seed: int = 42):
+    def close_nodes_sample(graph: nx.Graph, k: int, seed: int = 42):
         """
         Select the highest degree node and its k-1 closest neighbors in
         the graph. If the highest degree node has less than k-1 neighbors,
@@ -57,7 +56,7 @@ class EnergyOptimizer:
 
         Parameters:
         -----------
-        G : nx.Graph
+        graph : nx.Graph
             The input graph.
         k : int
             The number of nodes to select.
@@ -70,9 +69,9 @@ class EnergyOptimizer:
             The indices of the selected nodes.
         """
         rng = np.random.default_rng(seed)
-        degrees = dict(G.degree())
+        degrees = dict(graph.degree())
         max_degree_node = max(degrees, key=degrees.get)
-        neighbors = list(G.neighbors(max_degree_node))
+        neighbors = list(graph.neighbors(max_degree_node))
         
         if len(neighbors) >= k - 1:
             selected_neighbors = rng.choice(neighbors, size=k-1, replace=False)
@@ -81,7 +80,7 @@ class EnergyOptimizer:
             # If not enough neighbors, include second-order neighbors
             second_order_neighbors = set()
             for neighbor in neighbors:
-                second_order_neighbors.update(G.neighbors(neighbor))
+                second_order_neighbors.update(graph.neighbors(neighbor))
             second_order_neighbors.discard(max_degree_node)  # Remove the max degree node itself
             all_candidates = list(set(neighbors) | second_order_neighbors)
             
@@ -94,14 +93,14 @@ class EnergyOptimizer:
         return sample
 
     @staticmethod
-    def farthest_nodes_sample(G: nx.Graph, k: int, seed: int = 42,
+    def farthest_nodes_sample(graph: nx.Graph, k: int, seed: int = 42,
                               distance_matrix: np.ndarray = None):
         """
         Select the k nodes that are farthest apart in the graph based on shortest path lengths.
 
         Parameters:
         -----------
-        G : nx.Graph
+        graph : nx.Graph
             The input graph.
         k : int
             The number of nodes to select.
@@ -117,16 +116,16 @@ class EnergyOptimizer:
         """
         rng = np.random.default_rng(seed)
         if distance_matrix is None:
-            distance_matrix = np.array(nx.floyd_warshall_numpy(G))  
+            distance_matrix = np.array(nx.floyd_warshall_numpy(graph))  
         else:
             distance_matrix = np.array(distance_matrix)
         
-        if k > len(G.nodes):
+        if k > len(graph.nodes):
             raise ValueError("k cannot be greater than the number of nodes in the graph.")
         
         selected_nodes = []
         # Start with a random node
-        first_node = rng.choice(list(G.nodes))
+        first_node = rng.choice(list(graph.nodes))
         selected_nodes.append(first_node)
         while len(selected_nodes) < k:
             # Calculate the maximum distance from the selected nodes to all other nodes
