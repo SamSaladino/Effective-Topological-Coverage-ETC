@@ -132,11 +132,10 @@ class EnergyOptimizer:
             # Get maximum distance for each node from the selected nodes
             max_distances = np.max(distance_matrix[selected_array, :], axis=0)
             # Exclude already selected nodes
-            max_distances[selected_nodes] = -1
+            max_distances[selected_nodes] = -np.inf 
             # Select the node with the maximum distance
             next_node = np.argmax(max_distances)
             selected_nodes.append(int(next_node))
-            
         return np.array(selected_nodes)
 
     
@@ -463,11 +462,12 @@ class EnergyOptimizer:
                                            cooloing, seed, steps, n_workers, optimize="maximize")
 if __name__ == "__main__":
     
-    graph = nx.erdos_renyi_graph(n=3000, p=0.1, seed=42)
+    graph = nx.erdos_renyi_graph(n=300, p=0.1, seed=42)
 
     H = Hamiltonian(graph)
     optimizer = EnergyOptimizer(H)
-    
+    distance_matrix = nx.floyd_warshall_numpy(graph)
+
     n = 100
     k = 10
     gamma = 0.5
@@ -480,7 +480,7 @@ if __name__ == "__main__":
         n, k, gamma, mu, n_samples, seed, n_workers
     )
 
-    farthest_sample = optimizer.farthest_nodes_sample(graph, k, seed)
+    farthest_sample = optimizer.farthest_nodes_sample(graph, k, seed, distance_matrix=distance_matrix)
     close_sample = optimizer.close_nodes_sample(graph, k, seed)
     print(f"Minimum hamiltonian sample: {min_hamiltonian_sample}, Hamiltonian: {hamiltonian.min()}")
     print(f"Maximum hamiltonian sample: {max_hamiltonian_sample}, Hamiltonian: {hamiltonian.max()}")
