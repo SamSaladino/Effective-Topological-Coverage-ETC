@@ -13,6 +13,7 @@ dependencies = [
     "numpy",
     "scipy",
     "networkx",
-    "matplotlib"
+    "matplotlib",
+    "pandas"
 ]
 requires-python = ">=3.12"

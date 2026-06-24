@@ -6,6 +6,6 @@ setup(
     packages=find_packages(where="src"),
     package_dir={"": "src"},
     install_requires=[
-        "numpy", "scipy", "networkx", "matplotlib"
+        "numpy", "scipy", "networkx", "matplotlib", "pandas"
     ],
 )
