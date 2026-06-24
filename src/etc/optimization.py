@@ -64,16 +64,19 @@ class EnergyOptimizer:
         Returns:
         --------
         sample : np.ndarray
-            The indices of the selected nodes.
+            The position indices (0-based positions) of the selected nodes in the graph.
         """
         rng = np.random.default_rng(seed)
+        # Create a mapping from node to its position in the graph
+        node_to_index = {node: idx for idx, node in enumerate(graph.nodes())}
+        
         degrees = dict(graph.degree())
         max_degree_node = max(degrees, key=degrees.get)
         neighbors = list(graph.neighbors(max_degree_node))
         
         if len(neighbors) >= k - 1:
             selected_neighbors = rng.choice(neighbors, size=k-1, replace=False)
-            sample = np.array([max_degree_node] + list(selected_neighbors))
+            selected_nodes = [max_degree_node] + list(selected_neighbors)
         else:
             # If not enough neighbors, include second-order neighbors
             second_order_neighbors = set()
@@ -84,10 +87,12 @@ class EnergyOptimizer:
             
             if len(all_candidates) >= k - 1:
                 selected_candidates = rng.choice(all_candidates, size=k-1, replace=False)
-                sample = np.array([max_degree_node] + list(selected_candidates))
+                selected_nodes = [max_degree_node] + list(selected_candidates)
             else:
                 raise ValueError("Not enough nodes to select from.")
         
+        # Convert node identifiers to their position indices
+        sample = np.array([node_to_index[node] for node in selected_nodes])
         return sample
 
     @staticmethod
