@@ -348,10 +348,8 @@ class EnergyOptimizer:
             Energy history from best run.
         """
         n_workers = max(1, min(n_workers, steps))
-        
         seed_seq = np.random.SeedSequence(seed)
         child_seeds = seed_seq.spawn(n_workers)
-        
         chunk_sizes = [
             steps // n_workers + (1 if i < steps % n_workers else 0)
             for i in range(n_workers)
@@ -365,7 +363,7 @@ class EnergyOptimizer:
         
         def worker(chunk_size, child_seed):
             return self._annealing_worker(S0_config, mu, gamma, Tmax, Tmin, 
-                                         cooloing, chunk_size, int(child_seed), optimize)
+                                         cooloing, chunk_size, child_seed, optimize)
         
         if len(tasks) == 1:
             results = [worker(*tasks[0])]
@@ -374,13 +372,11 @@ class EnergyOptimizer:
                 futures = [executor.submit(worker, chunk_size, child_seed) 
                           for chunk_size, child_seed in tasks]
                 results = [future.result() for future in futures]
-        
         # Select best result
         if optimize == "minimize":
             best_result = min(results, key=lambda x: x[1])
         else:  # maximize
             best_result = max(results, key=lambda x: x[1])
-        
         return best_result[0], best_result[1], best_result[2]
     
     def min_energy_annealing(self, S0_config, mu: float = 1.0, gamma: float = 1.0,
@@ -482,7 +478,16 @@ if __name__ == "__main__":
 
     farthest_sample = optimizer.farthest_nodes_sample(graph, k, seed, distance_matrix=distance_matrix)
     close_sample = optimizer.close_nodes_sample(graph, k, seed)
+    
+    # Convert sample indices to binary mask for annealing
+    S0_mask = np.zeros(n, dtype=int)
+    S0_mask[farthest_sample] = 1
+
+    maxE = optimizer.max_energy_annealing(
+    S0_mask, gamma=gamma, mu=mu, steps=10000, n_workers=8, seed=42,
+    Tmin=1e-6)
     print(f"Minimum hamiltonian sample: {min_hamiltonian_sample}, Hamiltonian: {hamiltonian.min()}")
     print(f"Maximum hamiltonian sample: {max_hamiltonian_sample}, Hamiltonian: {hamiltonian.max()}")
     print(f"Farthest nodes sample: {farthest_sample}")
     print(f"Close nodes sample: {close_sample}")
+    print(f"Max energy annealing result: {maxE[1]}")
