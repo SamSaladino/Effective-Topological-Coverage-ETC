@@ -1,4 +1,4 @@
-from matplotlib.pylab import seed
+from matplotlib.pylab import gamma, seed
 import numpy as np
 import networkx as nx
 from scipy import sparse
@@ -136,7 +136,9 @@ class Hamiltonian:
 
         if S_idx_arr.size > 0:
             if S_idx_arr.min() < 0 or S_idx_arr.max() >= n:
-                raise IndexError("S_idx contains index outside the range" " of nodes")
+                raise IndexError(
+                    "S_idx contains index outside the range" " of nodes"
+                    )
 
         s = np.zeros(n, dtype=np.float64)
         s[S_idx_arr] = 1.0
@@ -146,8 +148,25 @@ class Hamiltonian:
         if gamma is None:
             gamma = self.gamma_balancer(mu=mu)
 
-        sub = self.Dinv2_triu[np.ix_(S_idx_arr, S_idx_arr)]
-        t2 = gamma * float(np.triu(sub, k=1).sum())
+        #  Extract the inverse-square distances between selected nodes.
+        distance_submatrix = self.Dinv2_triu[
+        np.ix_(S_idx_arr, S_idx_arr)
+            ]
+
+        # Extract the adjacency relationships between selected nodes.
+        # This matrix is small: its shape is (k, k), not (n, n).
+        adjacency_submatrix = self.A[
+            S_idx_arr, :
+        ][:, S_idx_arr].toarray()
+
+        # Only non-adjacent node pairs contribute to T2.
+        # For an adjacent pair, A_ij > 0 and the mask is False.
+        non_edge_mask = adjacency_submatrix == 0
+
+        t2 = gamma * float(np.triu(
+        distance_submatrix * non_edge_mask,
+        k=1,).sum())
+
         return t1 + t2, t1, t2
 #========================================================================================
     # -------------------- Energy and sampling ---------------------
@@ -335,6 +354,21 @@ def H(
     s = np.zeros(n, dtype=np.float64)
     s[S_idx_arr] = 1.0
     t1 = -0.5 * mu * float(s @ (A @ s))
-    sub = Dinv2_triu[np.ix_(S_idx_arr, S_idx_arr)]
-    t2 = gamma * float(np.triu(sub, k=1).sum())
+
+    distance_submatrix = Dinv2_triu[
+        np.ix_(S_idx_arr, S_idx_arr)
+    ]
+
+    adjacency_submatrix = A[
+        S_idx_arr, :
+    ][:, S_idx_arr].toarray()
+
+    non_edge_mask = adjacency_submatrix == 0
+
+    t2 = gamma * float(
+        np.triu(
+            distance_submatrix * non_edge_mask,
+            k=1,
+        ).sum()
+    )
     return t1 + t2, t1, t2

@@ -47,29 +47,37 @@ class XMLParser:
         return [item.split("/") for item in identifiers]
 
 
-    def get_chebi_numbers(self):
-            """
-            Returns a dictionary mapping HUMAN1 IDs to their respective ChEBI numbers.
-            
-            Parameters:
-            -----------
-            human_ids : list
-                List of HUMAN1 IDs to search for.
+    def get_chebi_numbers(self) -> dict[str, str]:
+        """
+        Return a mapping from HUMAN1 metabolite IDs to normalized
+        ChEBI identifiers.
 
-            Returns:
-            --------
-            chebi_number : list
-                List with  corresponding ChEBI numbers.
-            """
-            # Initialize an empty dictionary to store the HUMAN1 IDs and ChEBI numbers
-            chebi_number = {}
-            for index,i in enumerate(self.df.Identifiers):
-                for j in i:      
-                    if j[0] == 'chebi':
-                        if len(j[1].split(':')) == 2:
-                            chebi_number[index] = j[1].split(':')[1]
-                        
-            return chebi_number
+        Returns
+        -------
+        dict[str, str]
+            Dictionary in which keys are HUMAN1 species IDs and values
+            are ChEBI numeric identifiers without the ``CHEBI:`` prefix.
+        """
+        if self.df.empty:
+            self.extract_data()
+
+        chebi_mapping = {}
+
+        for metabolite_id, identifiers in zip(
+            self.df["Metabolite_ID"],
+            self.df["Identifiers"],
+        ):
+            chebi_raw = self._first_of(
+                identifiers,
+                "chebi",
+            )
+
+            chebi = self._normalize_chebi(chebi_raw)
+
+            if chebi is not None and chebi != "":
+                chebi_mapping[metabolite_id] = chebi
+
+        return chebi_mapping
     
     def _first_of(self, identifiers, key):
         """Return the value for the first matching key in identifiers."""

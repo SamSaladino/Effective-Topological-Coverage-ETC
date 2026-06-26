@@ -55,12 +55,22 @@ def test_gamma_balancer_on_complete_graph():
     # with rho == 1.0 the implementation returns mu * (min_pos ** 2)
     assert pytest.approx(gamma) == 1.0
 
-    # computing on full node set: t1 = -0.5 * mu * s@(A@s)
-    # For K3, s@(A@s) == 6 so t1 == -3; t2 == gamma * sum(triu(Dinv2)) == 1 * 3 == 3
-    val, t1, t2 = Hobj.compute([0, 1, 2], mu=1.0, gamma=None)
-    assert pytest.approx(t1) == -3.0
-    assert pytest.approx(t2) == 3.0
-    assert pytest.approx(val) == 0.0
+    # For K3, all three node pairs are directly connected.
+    #
+    # Therefore:
+    # - T1 contains three attractive edge contributions: T1 = -3.
+    # - T2 is zero because the factor (1 - A_ij) excludes all
+    #   directly connected pairs.
+    # - The total Hamiltonian is H = T1 + T2 = -3.
+    val, t1, t2 = Hobj.compute(
+        [0, 1, 2],
+        mu=1.0,
+        gamma=None,
+    )
+
+    assert t1 == pytest.approx(-3.0)
+    assert t2 == pytest.approx(0.0)
+    assert val == pytest.approx(-3.0)
 
 
 def test_invalid_S_idx_raises():
@@ -75,9 +85,68 @@ def test_compute_is_order_invariant():
     G = nx.path_graph(5)
     Hobj = Hamiltonian(G)
 
+
+
     val_sorted, t1_sorted, t2_sorted = Hobj.compute([0, 2, 4], mu=1.0, gamma=None)
     val_unsorted, t1_unsorted, t2_unsorted = Hobj.compute([4, 0, 2], mu=1.0, gamma=None)
 
     assert pytest.approx(val_sorted) == val_unsorted
     assert pytest.approx(t1_sorted) == t1_unsorted
     assert pytest.approx(t2_sorted) == t2_unsorted
+
+
+def test_adjacent_pair_contributes_only_to_local_term():
+    graph = nx.path_graph(2)
+    hamiltonian = Hamiltonian(graph)
+
+    H_value, T1, T2 = hamiltonian.compute(
+        [0, 1],
+        mu=2.0,
+        gamma=3.0,
+    )
+
+    assert T1 == pytest.approx(-2.0)
+    assert T2 == pytest.approx(0.0)
+    assert H_value == pytest.approx(-2.0)
+
+def test_t2_excludes_adjacent_nodes_and_includes_non_adjacent_nodes():
+    """
+    In a three-node path:
+
+        0 -- 1 -- 2
+
+    nodes 0 and 1 are adjacent, so they must not contribute to T2.
+
+    Nodes 0 and 2 are non-adjacent and have distance 2, so their
+    contribution to T2 is gamma / 2^2.
+    """
+    graph = nx.path_graph(3)
+    hamiltonian = Hamiltonian(graph)
+
+    mu = 2.0
+    gamma = 4.0
+
+    # Adjacent pair: only T1 contributes.
+    H_adjacent, T1_adjacent, T2_adjacent = hamiltonian.compute(
+        [0, 1],
+        mu=mu,
+        gamma=gamma,
+    )
+
+    assert T1_adjacent == pytest.approx(-2.0)
+    assert T2_adjacent == pytest.approx(0.0)
+    assert H_adjacent == pytest.approx(-2.0)
+
+    # Non-adjacent pair: only T2 contributes.
+    # Distance(0, 2) = 2, therefore gamma / d^2 = 4 / 4 = 1.
+    H_non_adjacent, T1_non_adjacent, T2_non_adjacent = (
+        hamiltonian.compute(
+            [0, 2],
+            mu=mu,
+            gamma=gamma,
+        )
+    )
+
+    assert T1_non_adjacent == pytest.approx(0.0)
+    assert T2_non_adjacent == pytest.approx(1.0)
+    assert H_non_adjacent == pytest.approx(1.0)

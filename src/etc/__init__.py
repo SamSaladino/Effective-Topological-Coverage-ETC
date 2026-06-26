@@ -1,5 +1,11 @@
-from . import utils
-from . import parse_ids
-from .hamiltonian import Hamiltonian, precompute, H
+"""Effective Topological Coverage package."""
 
-__all__ = ["utils", "parse_ids", "Hamiltonian", "precompute", "H"]
+from .hamiltonian import H, Hamiltonian, precompute
+from .optimization import EnergyOptimizer
+
+__all__ = [
+    "Hamiltonian",
+    "EnergyOptimizer",
+    "H",
+    "precompute",
+]
