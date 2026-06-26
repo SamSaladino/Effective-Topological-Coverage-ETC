@@ -1,19 +1,39 @@
 [build-system]
-requires = ["setuptools", "wheel"]
+requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
+
 [project]
-name = "ETC"
+name = "effective-topological-coverage"
 version = "0.1.0"
-description = "Effective Topological Coverage metric for graph coverage evaluation"
+description = "Energy-based evaluation of topological coverage in metabolic networks"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { file = "LICENSE" }
+
 authors = [
-  { name="Sandra Costa", email="sanralisistrata@gmail.com" }
+    { name = "Sandra Costa" }
 ]
+
 dependencies = [
     "numpy",
     "scipy",
     "networkx",
     "matplotlib",
-    "pandas"
+    "pandas",
 ]
-requires-python = ">=3.12"
+
+
+[project.optional-dependencies]
+test = [
+    "pytest>=8","pathlib"
+]
+
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
