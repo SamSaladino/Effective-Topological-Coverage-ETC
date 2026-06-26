@@ -1,20 +1,22 @@
 import networkx as nx
 import pytest
-
+import numpy as np
 from etc.hamiltonian import Hamiltonian
 from etc.optimization import EnergyOptimizer
 
-def test_sampling_energy_returns_absolute_hamiltonian():
+def test_sampling_energy_returns_signed_hamiltonian():
     """
-    sampling_energy() should return E = |H|, not the signed
-    Hamiltonian value.
+    sampling_energy() returns the signed Hamiltonian H.
+
+    Negative values indicate attraction-dominated configurations,
+    while positive values indicate repulsion-dominated configurations.
     """
     graph = nx.complete_graph(4)
 
     hamiltonian = Hamiltonian(graph)
     optimizer = EnergyOptimizer(hamiltonian)
 
-    energies, minimum_sample, maximum_sample = (
+    h_values, minimum_sample, maximum_sample = (
         optimizer.sampling_energy(
             n=4,
             k=2,
@@ -26,11 +28,37 @@ def test_sampling_energy_returns_absolute_hamiltonian():
         )
     )
 
-    # Any pair in K4 is connected:
-    # H = T1 + T2 = -1 + 0 = -1
-    # E = |H| = 1
-    assert energies.shape == (1,)
-    assert energies[0] == pytest.approx(1.0)
+    # Any selected pair in K4 is adjacent:
+    # T1 = -1, T2 = 0, therefore H = -1.
+    assert h_values.shape == (1,)
+    assert h_values[0] == pytest.approx(-1.0)
 
     assert len(minimum_sample) == 2
     assert len(maximum_sample) == 2
+
+def test_sampling_hamiltonian_is_reproducible():
+    """
+    Repeated calls with the same seed and worker count must return
+    identical Hamiltonian values and extrema samples.
+    """
+    graph = nx.path_graph(8)
+
+    hamiltonian = Hamiltonian(graph)
+    optimizer = EnergyOptimizer(hamiltonian)
+
+    arguments = {
+        "n": 8,
+        "k": 3,
+        "gamma": 1.0,
+        "mu": 1.0,
+        "n_samples": 100,
+        "seed": 42,
+        "n_workers": 2,
+    }
+
+    result_1 = optimizer.sampling_energy(**arguments)
+    result_2 = optimizer.sampling_energy(**arguments)
+
+    assert np.array_equal(result_1[0], result_2[0])
+    assert np.array_equal(result_1[1], result_2[1])
+    assert np.array_equal(result_1[2], result_2[2])
