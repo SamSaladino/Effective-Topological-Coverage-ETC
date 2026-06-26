@@ -1,6 +1,5 @@
 import numpy as np
 import concurrent.futures
-import pickle
 import os
 from etc.hamiltonian import Hamiltonian
 import networkx as nx
@@ -22,6 +21,49 @@ class EnergyOptimizer:
             The Hamiltonian object for the system.
         """
         self.H = hamiltonian
+    
+    def _energy_from_mask(
+        self,
+        mask: np.ndarray,
+        mu: float,
+        gamma: float,
+    ) -> float:
+        """
+        Evaluate E = |H| for a binary node-selection mask.
+        """
+        mask = np.asarray(mask)
+
+        if mask.ndim != 1:
+            raise ValueError(
+                "The annealing configuration must be a one-dimensional mask."
+            )
+
+        if len(mask) != self.H.n:
+            raise ValueError(
+                "The mask length must equal the number of graph nodes: "
+                f"received {len(mask)}, expected {self.H.n}."
+            )
+
+        if not np.all(np.isin(mask, [0, 1])):
+            raise ValueError(
+                "The annealing configuration must contain only binary values."
+            )
+
+        selected_indices = np.flatnonzero(mask)
+
+        if selected_indices.size == 0:
+            raise ValueError(
+                "The annealing configuration must contain at least "
+                "one selected node."
+            )
+
+        h_value = self.H.compute(
+            selected_indices,
+            mu=mu,
+            gamma=gamma,
+        )[0]
+
+        return abs(float(h_value))
     
     @staticmethod
     def create_S0_mask(idx, nodes):
@@ -148,7 +190,7 @@ class EnergyOptimizer:
         return np.array(selected_nodes)
 
     
-    def sampling_energy(self,
+    def sampling_h(self,
                        n: int, 
                        k: int, 
                        gamma: float, 
@@ -174,8 +216,8 @@ class EnergyOptimizer:
         seed : int
             The random seed for reproducibility.
         n_workers : int
-            The number of parallel workers to use. Uses ProcessPoolExecutor
-            for true CPU parallelism (requires Hamiltonian to be picklable).
+            The number of parallel workers to use. Uses ThreadPoolExecutor
+            for parallelism.
 
         Returns:
         --------
@@ -216,23 +258,22 @@ class EnergyOptimizer:
         if len(tasks) == 1:
             results = [worker(*tasks[0])]
         else:
-            # Use ProcessPoolExecutor instead of ThreadPoolExecutor for CPU-bound work
-            # to avoid GIL contention. ThreadPoolExecutor would not provide real
-            # parallelism since compute() is CPU-bound.
-            try:
-                with concurrent.futures.ProcessPoolExecutor(
-                    max_workers=len(tasks)) as executor:
+            with concurrent.futures.ThreadPoolExecutor(
+                max_workers=len(tasks)
+            ) as executor:
+                futures = [
+                    executor.submit(
+                        worker,
+                        chunk_size,
+                        child_seed,
+                    )
+                    for chunk_size, child_seed in tasks
+                ]
 
-                    futures = [
-                        executor.submit(
-                            worker, chunk_size, child_seed
-                            ) for chunk_size, child_seed in tasks
-                        ]
-                    results = [future.result() for future in futures]
-            except (TypeError, AttributeError, pickle.PicklingError) as e:
-                # Fallback to sequential execution if Hamiltonian is not picklable
-                print(f"Warning: ProcessPool failed ({type(e).__name__}). Falling back to sequential execution.")
-                results = [worker(chunk_size, child_seed) for chunk_size, child_seed in tasks]
+                results = [
+                    future.result()
+                    for future in futures
+                ]
 
         energies = np.concatenate([r[0] for r in results])
         samples = np.concatenate([r[1] for r in results], axis=0)
@@ -275,74 +316,92 @@ class EnergyOptimizer:
         history : list
             Energy history.
         """
+        if optimize not in {"minimize", "maximize"}:
+            raise ValueError(
+                "optimize must be either 'minimize' or 'maximize'."
+            )
+
         rng = np.random.default_rng(seed)
-        
-        # Initial configuration
-        S_current = S0_config.copy()
-        E_current = abs(self.H.compute(S_current, mu=mu, gamma=gamma)[0])
-        
+
+        # Annealing configurations are binary masks.
+        S_current = np.asarray(S0_config, dtype=int).copy()
+
+        E_current = self._energy_from_mask(
+            S_current,
+            mu=mu,
+            gamma=gamma,
+        )
+
         best_S = S_current.copy()
         best_E = E_current
-        
-        T = Tmax
-        history = []
-        
-        # Annealing loop
+
+        temperature = Tmax
+        history = [E_current]
+
         for _ in range(chunk_size):
             proposal_S = S_current.copy()
-            occupied_indices = np.where(proposal_S == 1)[0]
-            unoccupied_indices = np.where(proposal_S == 0)[0]
-            
-            # Swap move
-            remove_node = rng.choice(occupied_indices)
-            add_node = rng.choice(unoccupied_indices)
-            
+
+            occupied_indices = np.flatnonzero(proposal_S == 1)
+            unoccupied_indices = np.flatnonzero(proposal_S == 0)
+
+            if occupied_indices.size == 0:
+                raise ValueError(
+                    "Annealing requires at least one selected node."
+                )
+
+            if unoccupied_indices.size == 0:
+                raise ValueError(
+                    "Annealing requires at least one unselected node."
+                )
+
+            remove_node = int(rng.choice(occupied_indices))
+            add_node = int(rng.choice(unoccupied_indices))
+
             proposal_S[remove_node] = 0
             proposal_S[add_node] = 1
-            
-            # Compute new energy
-            proposal_E = abs(self.H.compute(proposal_S, mu=mu, gamma=gamma)[0])
+
+            proposal_E = self._energy_from_mask(
+                proposal_S,
+                mu=mu,
+                gamma=gamma,
+            )
+
             delta_E = proposal_E - E_current
-            
-            # Metropolis criterion
+
             if optimize == "minimize":
-                if delta_E < 0:
-                    accept = True
-                else:
-                    prob = np.exp(-delta_E / T)
-                    accept = rng.random() < prob
-                    
-                # Update best solution
-                if accept:
-                    S_current = proposal_S
-                    E_current = proposal_E
-                    if E_current < best_E:
-                        best_S = S_current.copy()
-                        best_E = E_current
-            else:  # maximize
-                if delta_E > 0:
-                    accept = True
-                else:
-                    prob = np.exp(delta_E / T)
-                    accept = rng.random() < prob
-                    
-                # Update best solution
-                if accept:
-                    S_current = proposal_S
-                    E_current = proposal_E
-                    if E_current > best_E:
-                        best_S = S_current.copy()
-                        best_E = E_current
-            
+                accept = (
+                    delta_E <= 0
+                    or rng.random() < np.exp(-delta_E / temperature)
+                )
+            else:
+                accept = (
+                    delta_E >= 0
+                    or rng.random() < np.exp(delta_E / temperature)
+                )
+
+            if accept:
+                S_current = proposal_S
+                E_current = proposal_E
+
+                if optimize == "minimize" and E_current < best_E:
+                    best_S = S_current.copy()
+                    best_E = E_current
+
+                elif optimize == "maximize" and E_current > best_E:
+                    best_S = S_current.copy()
+                    best_E = E_current
+
             history.append(E_current)
-            
-            # Cool down
-            T *= cooling
-            if T < Tmin:
+
+            temperature *= cooling
+
+            if temperature < Tmin:
                 break
-            elif proposal_E == 0.0:
+
+            # Zero is an exact lower bound only for minimization.
+            if optimize == "minimize" and best_E == 0.0:
                 break
-        
+
         return best_S, best_E, history
     
     def _run_parallel_annealing(self, S0_config, mu: float, gamma: float, Tmax: float, 
@@ -482,7 +541,7 @@ if __name__ == "__main__":
     optimizer = EnergyOptimizer(H)
     distance_matrix = nx.floyd_warshall_numpy(graph)
 
-    n = 100
+    n = 300
     k = 10
     gamma = 0.5
     mu = 0.1
@@ -490,7 +549,7 @@ if __name__ == "__main__":
     seed = 42
     n_workers = os.cpu_count() or 1
 
-    hamiltonian, min_hamiltonian_sample, max_hamiltonian_sample = optimizer.sampling_energy(
+    hamiltonian, min_hamiltonian_sample, max_hamiltonian_sample = optimizer.sampling_h(
         n, k, gamma, mu, n_samples, seed, n_workers
     )
 
