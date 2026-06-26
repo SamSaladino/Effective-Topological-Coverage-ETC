@@ -33,7 +33,7 @@ The H function is defined as
 
 $$
 \mathcal{H}(\mathbf{s})
-=======================
+
 
 -\mu
 \sum_{i<j}
@@ -54,9 +54,7 @@ where:
 The first term is
 
 $$
-T_1
-===
-
+T_1=
 -\mu
 \sum_{i<j}
 A_{ij}s_i s_j.
@@ -67,9 +65,7 @@ It becomes more negative when many observed metabolites are directly connected.
 The second term is
 
 $$
-T_2
-===
-
+T_2=
 \gamma
 \sum_{i<j}
 \frac{(1-A_{ij})s_i s_j}{d_{ij}^{2}}.
@@ -77,7 +73,7 @@ $$
 
 It evaluates non-adjacent observed pairs. Directly connected pairs are excluded through the factor (1-A_{ij}).
 
-The complete Hamiltonian is
+The complete H function is
 
 $$
 \mathcal{H}=T_1+T_2.
@@ -106,7 +102,7 @@ Workflow figure should be here.
 ```
 
 
-> Overview of the Effective Topological Coverage workflow. Metabolite annotations obtained from different analytical workflows are mapped to a common metabolic compound graph. Local adjacency and global shortest-path distances are combined in the Hamiltonian (\mathcal{H}). The effective energy (E=|\mathcal{H}|) quantifies the balance between local biochemical coherence and global network dispersion.
+> Overview of the Effective Topological Coverage workflow. Metabolite annotations obtained from different analytical workflows are mapped to a common metabolic compound graph. Local adjacency and global shortest-path distances are combined in the Hamiltonian $\mathcal{H}$. The effective energy $E=|\mathcal{H}|$ quantifies the balance between local biochemical coherence and global network dispersion.
 
 Avoid using a generic network screenshot. The figure should explain the method, not merely decorate the README.
 
