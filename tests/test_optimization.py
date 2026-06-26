@@ -62,3 +62,59 @@ def test_sampling_hamiltonian_is_reproducible():
     assert np.array_equal(result_1[0], result_2[0])
     assert np.array_equal(result_1[1], result_2[1])
     assert np.array_equal(result_1[2], result_2[2])
+
+def test_minimum_annealing_energy_matches_returned_mask():
+    """
+    The energy returned by annealing must correspond to the nodes
+    selected in the returned binary mask.
+
+    A complete graph is used because every subset of k nodes has a
+    simple exact Hamiltonian:
+
+        H = -C(k, 2)
+
+    when mu = 1 and T2 excludes adjacent pairs.
+    """
+    graph = nx.complete_graph(6)
+
+    hamiltonian = Hamiltonian(graph)
+    optimizer = EnergyOptimizer(hamiltonian)
+
+    # Select three nodes using a binary mask.
+    initial_mask = np.zeros(6, dtype=int)
+    initial_mask[[0, 2, 4]] = 1
+
+    best_mask, best_energy, history = (
+        optimizer.min_energy_annealing(
+            initial_mask,
+            mu=1.0,
+            gamma=1.0,
+            steps=10,
+            n_workers=1,
+            seed=42,
+        )
+    )
+
+    # The swap operation must preserve k.
+    assert best_mask.sum() == 3
+
+    # Convert the returned mask to the node positions expected by
+    # Hamiltonian.compute().
+    selected_positions = np.flatnonzero(best_mask)
+
+    expected_energy = abs(
+        hamiltonian.compute(
+            selected_positions,
+            mu=1.0,
+            gamma=1.0,
+        )[0]
+    )
+
+    # In K6, any three selected nodes form three edges:
+    # H = -3 and E = |H| = 3.
+    assert expected_energy == pytest.approx(3.0)
+
+    # The optimizer must report the energy of the returned configuration.
+    assert best_energy == pytest.approx(expected_energy)
+
+    assert len(history) > 0
