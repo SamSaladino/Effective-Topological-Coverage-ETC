@@ -1,8 +1,8 @@
 Effective Topological Coverage or Etcetera ;p (ETC) is a Python framework for evaluating how a set of observed metabolites is distributed across a metabolic network.
 
-The method distinguishes between metabolite sets that are concentrated in a small biochemical region and sets that are broadly dispersed across the network. It combines local biochemical connectivity and global network dispersion in a single energy-based formulation.
+The method distinguishes metabolite sets that are concentrated in a small biochemical region from those that are broadly dispersed across the network. It combines local biochemical connectivity and global network dispersion in a single energy-based formulation.
 
-ETC was developed for the comparison of metabolite lists obtained from different LC-MS analytical workflows, but the framework can be applied to any set of observations mapped to a graph.
+ETC was developed to compare metabolite lists from different LC-MS analytical workflows, but the framework can be applied to any set of observations mapped onto a graph.
 
 ## Scientific publication
 
@@ -13,28 +13,26 @@ Here will be when published ;p
 The metabolic network is represented as an undirected, unweighted compound graph
 
 $$
-G=(V,E),
+G=(n,e),
 $$
 
 where:
 
-* (V) is the set of metabolites;
-* (E) contains an edge between two metabolites when they participate as substrate and product in the same reaction.
+* $n$ is the set of metabolites;
+* $e$ contains an edge between two metabolites when they participate as substrate and product in the same reaction.
 
-For a network containing (n) metabolites, an observed metabolite set is represented by a binary vector
+For a network containing $n$ metabolites, an observed metabolite set is represented by a binary vector
 
 $$
 \mathbf{s}\in{0,1}^{n},
 $$
 
-where (s_i=1) when metabolite (i) is observed and (s_i=0) otherwise.
+where $s_i=1$ when metabolite $i$ is observed and $s_i=0$ otherwise.
 
 The H function is defined as
 
 $$
-\mathcal{H}(\mathbf{s})
-
-
+\mathcal{H}(\mathbf{s})=
 -\mu
 \sum_{i<j}
 A_{ij}s_i s_j
@@ -46,10 +44,10 @@ $$
 
 where:
 
-* (A_{ij}) is the adjacency matrix;
-* (d_{ij}) is the shortest-path distance between nodes (i) and (j);
-* (\mu>0) controls the contribution of local biochemical connections;
-* (\gamma>0) controls the contribution of global dispersion.
+* $A_{ij}$ is the adjacency matrix;
+* $d_{ij}$ is the shortest-path distance between nodes $i$ and $j$;
+* $\mu>0$ controls the contribution of local biochemical connections;
+* $\gamma>0$ controls the contribution of global dispersion.
 
 The first term is
 
@@ -71,7 +69,7 @@ T_2=
 \frac{(1-A_{ij})s_i s_j}{d_{ij}^{2}}.
 $$
 
-It evaluates non-adjacent observed pairs. Directly connected pairs are excluded through the factor (1-A_{ij}).
+It evaluates non-adjacent observed pairs. Directly connected pairs are excluded through the factor $1-A_{ij}$.
 
 The complete H function is
 
@@ -81,9 +79,9 @@ $$
 
 Its sign provides information about the dominant topological regime:
 
-* (\mathcal{H}<0): local connectivity dominates and the observations tend to cluster;
-* (\mathcal{H}>0): non-local dispersion dominates;
-* (\mathcal{H}\approx0): local coherence and global dispersion are approximately balanced.
+* $\mathcal{H}<0$: local connectivity dominates, and the observations tend to cluster;
+* $\mathcal{H}>0$: non-local dispersion dominates;
+* $\mathcal{H}\approx 0$: local coherence and global dispersion are approximately balanced.
 
 The effective energy is
 
@@ -91,7 +89,7 @@ $$
 E=|\mathcal{H}|.
 $$
 
-A small value of (E) identifies a configuration close to the balance between clustering and dispersion.
+A small value of $E$ identifies a configuration close to the balance between clustering and dispersion.
 
 ## Suggested overview figure
 
@@ -222,7 +220,7 @@ The graph should satisfy the following conditions:
 * isolated or unwanted nodes have been handled during preprocessing;
 * node identifiers are unique;
 * the graph is undirected;
-* the graph is not a multigraph.
+* The graph is not a multigraph.
 
 The interpretation of the results depends on graph preprocessing. Side-compound removal, compartment merging, component selection, and degree-based filtering should therefore be documented for every analysis.
 
@@ -240,7 +238,7 @@ M_pyruvate_c
 
 Empty lines and lines beginning with `#` are ignored.
 
-Every identifier in the observation file must match a node identifier in the graph exactly.
+Every identifier in the observation file must exactly match a node identifier in the graph.
 
 Duplicate identifiers should not be included.
 
@@ -371,7 +369,7 @@ For the path
 0 -- 1 -- 2
 ```
 
-nodes 0 and 2 are separated by distance 2 and are not adjacent. Therefore,
+Nodes 0 and 2 are separated by a distance of 2 and are not adjacent. Therefore,
 
 $$
 T_1=0,
@@ -507,18 +505,17 @@ $$
 E=|\mathcal{H}|,
 $$
 
-not the signed Hamiltonian.
+not the signed $\mathcal{H}$.
 
-The selected-node count (k) is preserved through one-for-one swap moves.
+The selected-node count $k$ is preserved through one-for-one swap moves.
 
 ## Normalized coverage
 
-After estimating (E_{\min}) and (E_{\max}), normalized coverage can be calculated as
+After estimating $E_{\min}$ and $E_{\max}$, normalized coverage can be calculated as
 
 $$
 C
 =
-
 1-
 \frac{E-E_{\min}}
 {E_{\max}-E_{\min}}.
@@ -543,16 +540,16 @@ coverage = 1.0 - (
 print(f"Coverage = {coverage:.6f}")
 ```
 
-Do not automatically clip the result to ([0,1]).
+Do not automatically clip the result to $[0,1]$.
 
 A result outside this interval indicates that the estimated extrema do not bound the observed configuration. This may occur when stochastic optimization has not adequately explored the configuration space.
 
-Values of (E_{\min}), (E_{\max}), and (C) are only comparable when they were obtained using the same:
+Values of $E_{\min}$, $E_{\max}$, and $C$ are only comparable when they were obtained using the same:
 
 * graph;
 * preprocessing procedure;
-* number of selected nodes (k);
-* values of (\mu) and (\gamma);
+* number of selected nodes $k$;
+* values of $\mu$ and $\gamma$;
 * optimization definition.
 
 ## Exact landscape analysis
@@ -607,7 +604,7 @@ The script:
 
 This step requires Java and a compiled Met4J toolbox JAR.
 
-The exact Human-GEM release, Met4J version, side-compound procedure, compartment-merging rule, and graph filtering steps should be recorded in the analysis notebook or accompanying metadata.
+The exact Human-GEM release, Met4J version, side-compound procedure, compartment-merging rule, and graph-filtering steps should be recorded in the analysis notebook or in the accompanying metadata.
 
 ## Reproducibility notebooks
 
@@ -620,7 +617,7 @@ This notebook should be used to verify the interpretation of:
 * clustered configurations;
 * dispersed configurations;
 * balanced configurations;
-* the effects of (k), (\mu), and (\gamma).
+* the effects of $k$, $\mu$, and $\gamma$.
 
 ### `01_Daniel_compilation.ipynb`
 
@@ -630,7 +627,7 @@ The notebook includes:
 
 * loading the processed Human1 graph;
 * mapping metabolite annotations;
-* evaluating signed (\mathcal{H});
+* evaluating signed $\mathcal{H}$;
 * random sampling;
 * annealing;
 * estimation of energy bounds;
@@ -643,13 +640,13 @@ Evaluates whether the conclusions are stable under changes in model parameters, 
 The robustness analysis should include:
 
 1. repeated optimization across random seeds;
-2. sensitivity to (\mu) and (\gamma);
+2. sensitivity to $\mu$ and $\gamma$;
 3. sensitivity to the number of annealing steps;
-4. node-replacement perturbations that preserve (k);
+4. node-replacement perturbations that preserve $k$;
 5. comparison with random subsets of equal size;
 6. sensitivity to graph preprocessing.
 
-A robustness result should report both the variation in signed (\mathcal{H}) and the variation in (E=|\mathcal{H}|).
+A robustness result should report both the variation in signed $\mathcal{H}$ and the variation in $E=|\mathcal{H}|$.
 
 ## Testing
 
@@ -677,7 +674,7 @@ Run command-line interface tests with:
 python -m pytest tests/test_cli.py -v
 ```
 
-The continuous-integration workflow installs the package in a clean Python environment and runs the same tests automatically for pushes and pull requests.
+The continuous integration workflow installs the package in a clean Python environment and automatically runs the same tests on pushes and pull requests.
 
 ## Interpretation and limitations
 
@@ -700,8 +697,8 @@ The method is also sensitive to:
 * graph connectivity;
 * node-identifier mapping;
 * distance definition;
-* the selected values of (\mu) and (\gamma);
-* the number of observations (k);
+* the selected values of $\mu$ and $\gamma$;
+* the number of observations $k$;
 * the quality of stochastic extrema estimation.
 
 Results should therefore be interpreted as network-topological coverage under a specified graph construction and parameterization, not as a complete measure of biochemical observability.
@@ -726,10 +723,10 @@ This project is distributed under the MIT License. See the `LICENSE` file for de
 
 The software was developed by Sandra Costa during her PhD research at INRAE Toulouse within the HUMAN Marie Skłodowska-Curie Doctoral Network.
 
-The final copyright-holder wording should be confirmed with the relevant institutional contact before a formal public release.
+The final wording for the copyright holder should be confirmed with the relevant institutional contact before a formal public release.
 
 ## Acknowledgments
 
-This work was developed within the HUMAN Doctoral Network and supported by the European Union’s Horizon Europe research and innovation programme under the Marie Skłodowska-Curie Actions as part of my PhD project.
+This work was developed within the HUMAN Doctoral Network and supported by the European Union’s Horizon Europe research and innovation program under the Marie Skłodowska-Curie Actions as part of my PhD project.
 
-Supervisors: Fabien Jourdan and Clément Frainay (INRAE), MeTExplore, MeT4J, Collaborator institutions that produced and collected the datastes: HMGU, CEMBIO, AFEKTA, ICL, AUTh.
+Supervisors: Fabien Jourdan and Clément Frainay (INRAE), MeTExplore, MeT4J, Collaborator institutions that produced and collected the datasets: HMGU, CEMBIO, AFEKTA, ICL, AUTh.
