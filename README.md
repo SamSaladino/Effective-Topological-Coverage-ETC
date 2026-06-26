@@ -734,6 +734,6 @@ The final copyright-holder wording should be confirmed with the relevant institu
 
 ## Acknowledgments
 
-This work was developed within the HUMAN Doctoral Network and supported by the European Union’s Horizon Europe research and innovation programme under the Marie Skłodowska-Curie Actions.
+This work was developed within the HUMAN Doctoral Network and supported by the European Union’s Horizon Europe research and innovation programme under the Marie Skłodowska-Curie Actions as part of my PhD project.
 
 Supervisors: Fabien Jourdan and Clément Frainay (INRAE), MeTExplore, MeT4J, Collaborator institutions that produced and collected the datastes: HMGU, CEMBIO, AFEKTA, ICL, AUTh.
