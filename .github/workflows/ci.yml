@@ -47,3 +47,6 @@ jobs:
       - name: Run tests
         run: |
           python -m pytest
+      - name: Install ETC and development dependencies
+        run: |
+          python -m pip install -e ".[dev]"
