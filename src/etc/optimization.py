@@ -1,5 +1,6 @@
 import numpy as np
 import concurrent.futures
+import pickle
 import os
 from etc.hamiltonian import Hamiltonian
 import networkx as nx
@@ -46,9 +47,9 @@ class EnergyOptimizer:
     @staticmethod
     def close_nodes_sample(graph: nx.Graph, k: int, seed: int = 42):
         """
-        Select the highest degree node and its k-1 closest neighbors in
+        Select the highest degree node and k-1 randomly sampled neighbors from
         the graph. If the highest degree node has less than k-1 neighbors,
-        choose the second order neighbors until k nodes are selected.
+        include second-order neighbors until k nodes are selected.
         If there are multiple nodes with the same degree, the node with the 
         lowest index is selected.
 
@@ -71,7 +72,10 @@ class EnergyOptimizer:
         node_to_index = {node: idx for idx, node in enumerate(graph.nodes())}
         
         degrees = dict(graph.degree())
-        max_degree_node = max(degrees, key=degrees.get)
+        # Select highest degree node, breaking ties by lowest index
+        max_degree = max(degrees.values())
+        candidates = [node for node in degrees if degrees[node] == max_degree]
+        max_degree_node = min(candidates, key=lambda node: node_to_index[node])
         neighbors = list(graph.neighbors(max_degree_node))
         
         if len(neighbors) >= k - 1:
@@ -170,7 +174,8 @@ class EnergyOptimizer:
         seed : int
             The random seed for reproducibility.
         n_workers : int
-            The number of parallel workers to use.
+            The number of parallel workers to use. Uses ProcessPoolExecutor
+            for true CPU parallelism (requires Hamiltonian to be picklable).
 
         Returns:
         --------
@@ -211,15 +216,23 @@ class EnergyOptimizer:
         if len(tasks) == 1:
             results = [worker(*tasks[0])]
         else:
-            with concurrent.futures.ThreadPoolExecutor(
-                max_workers=len(tasks)) as executor:
+            # Use ProcessPoolExecutor instead of ThreadPoolExecutor for CPU-bound work
+            # to avoid GIL contention. ThreadPoolExecutor would not provide real
+            # parallelism since compute() is CPU-bound.
+            try:
+                with concurrent.futures.ProcessPoolExecutor(
+                    max_workers=len(tasks)) as executor:
 
-                futures = [
-                    executor.submit(
-                        worker, chunk_size, child_seed
-                        ) for chunk_size, child_seed in tasks
-                    ]
-                results = [future.result() for future in futures]
+                    futures = [
+                        executor.submit(
+                            worker, chunk_size, child_seed
+                            ) for chunk_size, child_seed in tasks
+                        ]
+                    results = [future.result() for future in futures]
+            except (TypeError, AttributeError, pickle.PicklingError) as e:
+                # Fallback to sequential execution if Hamiltonian is not picklable
+                print(f"Warning: ProcessPool failed ({type(e).__name__}). Falling back to sequential execution.")
+                results = [worker(chunk_size, child_seed) for chunk_size, child_seed in tasks]
 
         energies = np.concatenate([r[0] for r in results])
         samples = np.concatenate([r[1] for r in results], axis=0)
@@ -228,7 +241,7 @@ class EnergyOptimizer:
 
     
     def _annealing_worker(self, S0_config, mu: float, gamma: float, Tmax: float, Tmin: float, 
-                         cooloing: float, chunk_size: int, seed: int, optimize: str = "minimize"):
+                         cooling: float, chunk_size: int, seed: int, optimize: str = "minimize"):
         """
         Shared annealing worker function for both minimization and maximization.
         
@@ -244,7 +257,7 @@ class EnergyOptimizer:
             Maximum temperature for annealing.
         Tmin : float
             Minimum temperature for annealing.
-        cooloing : float
+        cooling : float
             Cooling rate.
         chunk_size : int
             Number of iterations for this worker.
@@ -324,7 +337,7 @@ class EnergyOptimizer:
             history.append(E_current)
             
             # Cool down
-            T *= cooloing
+            T *= cooling
             if T < Tmin:
                 break
             elif proposal_E == 0.0:
@@ -385,7 +398,7 @@ class EnergyOptimizer:
         return best_result[0], best_result[1], best_result[2]
     
     def min_energy_annealing(self, S0_config, mu: float = 1.0, gamma: float = 1.0,
-                            Tmax: float = 1.0, Tmin: float = 1e-6, cooloing: float = 0.995,
+                            Tmax: float = 1.0, Tmin: float = 1e-6, cooling: float = 0.995,
                             seed: int = 42, steps: int = 10000, n_workers: int = 8):
         """
         Minimize energy using simulated annealing with parallel execution.
@@ -421,10 +434,10 @@ class EnergyOptimizer:
             Energy history.
         """
         return self._run_parallel_annealing(S0_config, mu, gamma, Tmax, Tmin, 
-                                           cooloing, seed, steps, n_workers, optimize="minimize")
+                                           cooling, seed, steps, n_workers, optimize="minimize")
     
     def max_energy_annealing(self, S0_config, mu: float = 1.0, gamma: float = 1.0,
-                            Tmax: float = 1.0, Tmin: float = 1e-6, cooloing: float = 0.995,
+                            Tmax: float = 1.0, Tmin: float = 1e-6, cooling: float = 0.995,
                             seed: int = 42, steps: int = 10000, n_workers: int = 8):
         """
         Maximize energy using simulated annealing with parallel execution.
@@ -460,7 +473,7 @@ class EnergyOptimizer:
             Energy history.
         """
         return self._run_parallel_annealing(S0_config, mu, gamma, Tmax, Tmin, 
-                                           cooloing, seed, steps, n_workers, optimize="maximize")
+                                           cooling, seed, steps, n_workers, optimize="maximize")
 if __name__ == "__main__":
     
     graph = nx.erdos_renyi_graph(n=300, p=0.1, seed=42)
