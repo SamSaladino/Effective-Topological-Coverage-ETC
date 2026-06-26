@@ -187,7 +187,8 @@ def sample_k_closest_to_zero(
 
     Strategy:
     - Random sampling of `n_random` subsets, keep best few.
-    - Local greedy swap hillclimb from top random candidates (try up to n_restarts)
+    - Perform greedy one-node swaps from multiple starting 
+    configurations to further reduce |H|.
 
     Returns: (best_value, best_subset_list)
     """
