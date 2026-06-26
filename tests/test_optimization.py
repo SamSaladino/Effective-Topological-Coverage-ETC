@@ -4,20 +4,14 @@ import numpy as np
 from etc.hamiltonian import Hamiltonian
 from etc.optimization import EnergyOptimizer
 
-def test_sampling_energy_returns_signed_hamiltonian():
-    """
-    sampling_energy() returns the signed Hamiltonian H.
-
-    Negative values indicate attraction-dominated configurations,
-    while positive values indicate repulsion-dominated configurations.
-    """
+def test_sampling_h_returns_signed_hamiltonian():
     graph = nx.complete_graph(4)
 
     hamiltonian = Hamiltonian(graph)
     optimizer = EnergyOptimizer(hamiltonian)
 
     h_values, minimum_sample, maximum_sample = (
-        optimizer.sampling_energy(
+        optimizer.sampling_h(
             n=4,
             k=2,
             gamma=1.0,
@@ -28,8 +22,6 @@ def test_sampling_energy_returns_signed_hamiltonian():
         )
     )
 
-    # Any selected pair in K4 is adjacent:
-    # T1 = -1, T2 = 0, therefore H = -1.
     assert h_values.shape == (1,)
     assert h_values[0] == pytest.approx(-1.0)
 
@@ -56,8 +48,8 @@ def test_sampling_hamiltonian_is_reproducible():
         "n_workers": 2,
     }
 
-    result_1 = optimizer.sampling_energy(**arguments)
-    result_2 = optimizer.sampling_energy(**arguments)
+    result_1 = optimizer.sampling_h(**arguments)
+    result_2 = optimizer.sampling_h(**arguments)
 
     assert np.array_equal(result_1[0], result_2[0])
     assert np.array_equal(result_1[1], result_2[1])
