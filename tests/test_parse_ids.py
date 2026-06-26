@@ -102,3 +102,36 @@ def test_get_chebi_numbers_uses_human1_ids_as_keys(
     assert chebi_mapping == {
         "M_glucose_c": "17634",
     }
+
+def test_to_identifier_df_calls_extract_data_automatically(
+    toy_sbml_file,
+):
+    parser = XMLParser(str(toy_sbml_file))
+
+    assert parser.df.empty
+
+    result = parser.to_identifier_df()
+
+    assert not result.empty
+    assert "M_glucose_c" in result.index
+
+def test_xml_parser_rejects_malformed_xml(tmp_path):
+    malformed_file = tmp_path / "malformed.xml"
+    malformed_file.write_text(
+        "<sbml><model>",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(Exception):
+        XMLParser(str(malformed_file))
+        
+import xml.etree.ElementTree as ET
+def test_xml_parser_rejects_malformed_xml(tmp_path):
+    malformed_file = tmp_path / "malformed.xml"
+    malformed_file.write_text(
+        "<sbml><model>",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ET.ParseError):
+        XMLParser(str(malformed_file))
