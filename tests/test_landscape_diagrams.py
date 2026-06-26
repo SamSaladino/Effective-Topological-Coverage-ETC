@@ -35,3 +35,93 @@ def test_build_Jij_matches_hamiltonian_definition():
     assert coefficients[(0, 2)] == pytest.approx(1.0)
 
     assert len(coefficients) == 3
+
+def test_solve_extreme_k_minimum_matches_hamiltonian():
+    graph = nx.path_graph(3)
+    hamiltonian = Hamiltonian(graph)
+
+    adjacency = hamiltonian.A.toarray()
+    inverse_distance_squared = hamiltonian.Dinv2_triu
+
+    objective, mask = solve_extreme_k(
+        A=adjacency,
+        D=inverse_distance_squared,
+        k=2,
+        mu=2.0,
+        gamma=4.0,
+        sense="min",
+        workers=1,
+    )
+
+    selected_indices = np.flatnonzero(mask)
+
+    expected_h = hamiltonian.compute(
+        selected_indices,
+        mu=2.0,
+        gamma=4.0,
+    )[0]
+
+    assert mask.shape == (3,)
+    assert mask.sum() == 2
+    assert objective == pytest.approx(-2.0)
+    assert objective == pytest.approx(expected_h)
+
+def test_solve_extreme_k_maximum_matches_hamiltonian():
+    graph = nx.path_graph(3)
+    hamiltonian = Hamiltonian(graph)
+
+    adjacency = hamiltonian.A.toarray()
+    inverse_distance_squared = hamiltonian.Dinv2_triu
+
+    objective, mask = solve_extreme_k(
+        A=adjacency,
+        D=inverse_distance_squared,
+        k=2,
+        mu=2.0,
+        gamma=4.0,
+        sense="max",
+        workers=1,
+    )
+
+    selected_indices = np.flatnonzero(mask)
+
+    expected_h = hamiltonian.compute(
+        selected_indices,
+        mu=2.0,
+        gamma=4.0,
+    )[0]
+
+    assert mask.sum() == 2
+    assert set(selected_indices) == {0, 2}
+    assert objective == pytest.approx(1.0)
+    assert objective == pytest.approx(expected_h)
+
+def test_solve_extreme_k_closest_to_zero():
+    graph = nx.path_graph(3)
+    hamiltonian = Hamiltonian(graph)
+
+    adjacency = hamiltonian.A.toarray()
+    inverse_distance_squared = hamiltonian.Dinv2_triu
+
+    objective, mask = solve_extreme_k(
+        A=adjacency,
+        D=inverse_distance_squared,
+        k=2,
+        mu=2.0,
+        gamma=4.0,
+        sense="closest",
+        workers=1,
+        precision=10_000,
+    )
+
+    selected_indices = np.flatnonzero(mask)
+
+    expected_h = hamiltonian.compute(
+        selected_indices,
+        mu=2.0,
+        gamma=4.0,
+    )[0]
+
+    assert set(selected_indices) == {0, 2}
+    assert objective == pytest.approx(1.0)
+    assert objective == pytest.approx(expected_h)
