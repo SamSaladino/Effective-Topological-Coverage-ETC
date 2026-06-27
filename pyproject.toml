@@ -21,12 +21,13 @@ dependencies = [
     "networkx",
     "matplotlib",
     "pandas",
+    "ortools",
 ]
 
 
 [project.optional-dependencies]
 test = [
-    "pytest>=8","pathlib","ortools"
+    "pytest>=8","pathlib"
 ]
 
 
