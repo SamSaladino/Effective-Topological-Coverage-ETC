@@ -27,7 +27,7 @@ dependencies = [
 
 [project.optional-dependencies]
 test = [
-    "pytest>=8","pathlib"
+    "pytest>=8"
 ]
 
 
