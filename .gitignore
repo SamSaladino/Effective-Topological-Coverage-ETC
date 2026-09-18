@@ -200,3 +200,4 @@ results
 baseline_tests.txt
 src/effective_topological_coverage.egg-info
 doccs/
+notebooks/graph_properties
